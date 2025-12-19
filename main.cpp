@@ -232,8 +232,7 @@ static void input_callback(InputEvent* event, void* ctx) {
     furi_mutex_release(state->mutex);
 }
 
-/* ================= RENDER ================= */
-
+// писал chatGPT 
 static void render_callback(Canvas* canvas, void* ctx) {
     FlipperState* state = (FlipperState*)ctx;
     
@@ -245,15 +244,40 @@ static void render_callback(Canvas* canvas, void* ctx) {
         // Даем игре отрисовать кадр
         Game::Draw();
         
-        // Конвертируем Arduboy буфер в XBM формат для Flipper
+        // Быстро обнуляем XBM-буфер
         memset(state->xbm_buffer, 0, BUFFER_SIZE);
         
-        for(int y = 0; y < DISPLAY_HEIGHT; y++) {
-            for(int x = 0; x < DISPLAY_WIDTH; x++) {
-                uint16_t idx = x + (y >> 3) * DISPLAY_WIDTH;
-                if(state->screen_buffer[idx] & (1 << (y & 7))) {
-                    uint16_t xbm_idx = (y * DISPLAY_WIDTH + x) >> 3;
-                    state->xbm_buffer[xbm_idx] |= 1 << (x & 7);
+        // Параметры для трансформации
+        const int dst_stride = DISPLAY_WIDTH >> 3;           // количество байт в строке XBM (128/8 = 16)
+        const int vert_blocks = DISPLAY_HEIGHT >> 3;         // количество блоков по 8 строк (64/8 = 8)
+        
+        // Итерация по столбцам и вертикальным байтам исходного буфера
+        for(int x = 0; x < DISPLAY_WIDTH; ++x) {
+            const uint8_t mask = (uint8_t)(1u << (x & 7));   // бит в целевом XBM-байте
+            const int x_div8 = x >> 3;                       // смещение внутри XBM-строки
+            
+            // Для каждого вертикального байта (по 8 пикселей по Y)
+            // src_idx = x + by * DISPLAY_WIDTH
+            for(int by = 0; by < vert_blocks; ++by) {
+                const uint16_t src_idx = (uint16_t)(x + by * DISPLAY_WIDTH);
+                const uint8_t b = state->screen_buffer[src_idx];
+                if(!b) continue; // пропускаем нулевой байт
+                
+                // Вычисляем базовый индекс в XBM для y = by*8
+                // base = ((by*8)*DISPLAY_WIDTH + x) >> 3
+                // Упрощается до:
+                const uint16_t base = (uint16_t)(by * DISPLAY_WIDTH + x_div8);
+                
+                // Для каждого из 8 битов исходного байта устанавливаем соответствующий XBM-байт
+                // dst indices: base + k * dst_stride  (k = 0..7)
+                uint16_t dst = base;
+                uint8_t bitmask = 1;
+                for(int k = 0; k < 8; ++k) {
+                    if(b & bitmask) {
+                        state->xbm_buffer[dst] |= mask;
+                    }
+                    dst += dst_stride;
+                    bitmask <<= 1;
                 }
             }
         }
@@ -266,7 +290,6 @@ static void render_callback(Canvas* canvas, void* ctx) {
     
     furi_mutex_release(state->mutex);
 }
-
 /* ================= ENTRY ================= */
 
 extern "C" int32_t arduboy3d_app(void* p) {
@@ -298,14 +321,13 @@ extern "C" int32_t arduboy3d_app(void* p) {
     Gui* gui = (Gui*)furi_record_open(RECORD_GUI);
     gui_add_view_port(gui, view_port, GuiLayerFullscreen);
     
-    // Запуск игрового таймера (30 FPS)
     flipper_state->timer = furi_timer_alloc(timer_callback, FuriTimerTypePeriodic, flipper_state);
     furi_timer_start(flipper_state->timer, furi_kernel_get_tick_frequency() / TARGET_FRAMERATE);
     
     // Главный цикл
     while(!flipper_state->exit_requested) {
         view_port_update(view_port);
-        furi_delay_ms(50);
+        furi_delay_ms(100);
     }
     
     // Очистка
