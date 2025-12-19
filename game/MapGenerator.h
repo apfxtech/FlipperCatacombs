@@ -1,7 +1,7 @@
 #pragma once
 
 #include <stdint.h>
-#include "Map.h"
+#include "game/Map.h"
 
 class MapGenerator
 {

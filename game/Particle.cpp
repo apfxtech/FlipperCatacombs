@@ -1,6 +1,6 @@
-#include "Particle.h"
-#include "FixedMath.h"
-#include "Platform.h"
+#include "game/Particle.h"
+#include "game/FixedMath.h"
+#include "game/Platform.h"
 
 ParticleSystem ParticleSystemManager::systems[MAX_SYSTEMS];
 

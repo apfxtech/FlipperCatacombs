@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Defines.h"
+#include "game/Defines.h"
 
 const uint8_t vectorTexture0[] PROGMEM =
 {

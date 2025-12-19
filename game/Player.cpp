@@ -1,13 +1,13 @@
-#include "Player.h"
-#include "Game.h"
-#include "FixedMath.h"
-#include "Projectile.h"
-#include "Platform.h"
-#include "Draw.h"
-#include "Enemy.h"
-#include "Map.h"
-#include "Sounds.h"
-#include "Particle.h"
+#include "game/Player.h"
+#include "game/Game.h"
+#include "game/FixedMath.h"
+#include "game/Projectile.h"
+#include "game/Platform.h"
+#include "game/Draw.h"
+#include "game/Enemy.h"
+#include "game/Map.h"
+#include "game/Sounds.h"
+#include "game/Particle.h"
 
 #define USE_ROTATE_BOB 0
 #define STRAFE_TILT 14

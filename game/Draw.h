@@ -1,5 +1,5 @@
 #pragma once
-#include "Defines.h"
+#include "game/Defines.h"
 
 #define WITH_IMAGE_TEXTURES 0
 #define WITH_VECTOR_TEXTURES 1

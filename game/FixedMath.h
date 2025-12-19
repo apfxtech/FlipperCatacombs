@@ -4,7 +4,7 @@
 #if defined(_WIN32)
 #include <math.h>
 #endif
-#include "Defines.h"
+#include "game/Defines.h"
 
 #define FIXED_SHIFT 8
 #define FIXED_ONE (1 << FIXED_SHIFT)

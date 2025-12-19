@@ -1,12 +1,12 @@
-#include "Defines.h"
-#include "Projectile.h"
-#include "Map.h"
-#include "FixedMath.h"
-#include "Particle.h"
-#include "Enemy.h"
-#include "Generated/SpriteTypes.h"
-#include "Platform.h"
-#include "Sounds.h"
+#include "game/Defines.h"
+#include "game/Projectile.h"
+#include "game/Map.h"
+#include "game/FixedMath.h"
+#include "game/Particle.h"
+#include "game/Enemy.h"
+#include "game/Generated/SpriteTypes.h"
+#include "game/Platform.h"
+#include "game/Sounds.h"
 
 Projectile ProjectileManager::projectiles[ProjectileManager::MAX_PROJECTILES];
 

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <stdint.h>
-#include "Defines.h"
+#include "game/Defines.h"
 
 #define FONT_WIDTH 4
 #define FONT_HEIGHT 6

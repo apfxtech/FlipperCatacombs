@@ -1,9 +1,9 @@
 #pragma once
 
 #include <stdint.h>
-#include "Defines.h"
-#include "Draw.h"
-#include "Game.h"
+#include "game/Defines.h"
+#include "game/Draw.h"
+#include "game/Game.h"
 
 struct Particle
 {

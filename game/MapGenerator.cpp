@@ -1,8 +1,8 @@
-#include "MapGenerator.h"
-#include "Map.h"
-#include "FixedMath.h"
-#include "Enemy.h"
-#include "Game.h"
+#include "game/MapGenerator.h"
+#include "game/Map.h"
+#include "game/FixedMath.h"
+#include "game/Enemy.h"
+#include "game/Game.h"
 
 uint8_t MapGenerator::GetDistanceToCellType(uint8_t x, uint8_t y, CellType cellType)
 {

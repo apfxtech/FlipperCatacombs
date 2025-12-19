@@ -1,10 +1,10 @@
-#include "Defines.h"
-#include "Map.h"
-#include "Game.h"
-#include "FixedMath.h"
-#include "Draw.h"
-#include "Platform.h"
-#include "Enemy.h"
+#include "game/Defines.h"
+#include "game/Map.h"
+#include "game/Game.h"
+#include "game/FixedMath.h"
+#include "game/Draw.h"
+#include "game/Platform.h"
+#include "game/Enemy.h"
 
 uint8_t Map::level[Map::width * Map::height / 2];
 

@@ -1,10 +1,10 @@
 #pragma once
 
 #include <stdint.h>
-#include "Defines.h"
-#include "Player.h"
-#include "Enemy.h"
-#include "Menu.h"
+#include "game/Defines.h"
+#include "game/Player.h"
+#include "game/Enemy.h"
+#include "game/Menu.h"
 
 class Entity;
 

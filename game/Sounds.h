@@ -1,6 +1,6 @@
 #pragma once
 #include <stdint.h>
-#include "Defines.h"
+#include "game/Defines.h"
 
 class Sounds
 {

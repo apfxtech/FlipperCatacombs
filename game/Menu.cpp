@@ -1,11 +1,11 @@
-#include "Defines.h"
-#include "Platform.h"
-#include "Menu.h"
-#include "Font.h"
-#include "Game.h"
-#include "FixedMath.h"
-#include "Draw.h"
-#include "Generated/SpriteTypes.h"
+#include "game/Defines.h"
+#include "game/Platform.h"
+#include "game/Menu.h"
+#include "game/Font.h"
+#include "game/Game.h"
+#include "game/FixedMath.h"
+#include "game/Draw.h"
+#include "game/Generated/SpriteTypes.h"
 
 void Menu::Init()
 {

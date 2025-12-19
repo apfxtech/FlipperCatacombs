@@ -1,4 +1,4 @@
-#include "Sounds.h"
+#include "game/Sounds.h"
 
 #define TONES_END 0x8000
 

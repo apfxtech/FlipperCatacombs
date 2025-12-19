@@ -2,10 +2,10 @@
 // https://hackaday.io/project/6309-vga-graphics-over-spi-and-serial-vgatonic/log/20759-a-tiny-4x6-pixel-font-that-will-fit-on-almost-any-microcontroller-license-mit
 
 #include <stdint.h>
-#include "Defines.h"
-#include "Font.h"
-#include "Platform.h"
-#include "Generated/SpriteTypes.h"
+#include "game/Defines.h"
+#include "game/Font.h"
+#include "game/Platform.h"
+#include "game/Generated/SpriteTypes.h"
 
 void Font::PrintString(const char* str, uint8_t line, uint8_t x, uint8_t colour)
 {

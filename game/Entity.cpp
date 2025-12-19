@@ -1,6 +1,6 @@
-#include "Entity.h"
-#include "Game.h"
-#include "Map.h"
+#include "game/Entity.h"
+#include "game/Game.h"
+#include "game/Map.h"
 
 #define ENTITY_SIZE 192
 

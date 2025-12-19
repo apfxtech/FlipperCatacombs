@@ -7,11 +7,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "Game.h"
-#include "Draw.h"
-#include "FixedMath.h"
-#include "Platform.h"
-#include "Defines.h"
+#include "game/Game.h"
+#include "game/Draw.h"
+#include "game/FixedMath.h"
+#include "game/Platform.h"
+#include "game/Defines.h"
 
 #define DISPLAY_WIDTH 128
 #define DISPLAY_HEIGHT 64

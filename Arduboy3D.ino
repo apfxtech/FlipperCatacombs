@@ -1,9 +1,9 @@
 #include <Arduboy2.h>
 #include <ArduboyTones.h>
-#include "Game.h"
-#include "Draw.h"
-#include "FixedMath.h"
-#include "Platform.h"
+#include "game/Game.h"
+#include "game/Draw.h"
+#include "game/FixedMath.h"
+#include "game/Platform.h"
 
 Arduboy2Base arduboy;
 ArduboyTones sound(arduboy.audio.enabled);

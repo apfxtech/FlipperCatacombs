@@ -1,9 +1,9 @@
 #pragma once
 
 #include <stdint.h>
-#include "Entity.h"
-#include "Defines.h"
-#include "Draw.h"
+#include "game/Entity.h"
+#include "game/Defines.h"
+#include "game/Draw.h"
 
 enum class EnemyType : uint8_t
 {

@@ -1,20 +1,20 @@
 #include <stdint.h>
-#include "Draw.h"
-#include "Defines.h"
-#include "Game.h"
-#include "Particle.h"
-#include "FixedMath.h"
-#include "Map.h"
-#include "Projectile.h"
-#include "Platform.h"
-#include "Enemy.h"
-#include "Font.h"
+#include "game/Draw.h"
+#include "game/Defines.h"
+#include "game/Game.h"
+#include "game/Particle.h"
+#include "game/FixedMath.h"
+#include "game/Map.h"
+#include "game/Projectile.h"
+#include "game/Platform.h"
+#include "game/Enemy.h"
+#include "game/Font.h"
 
-#include "LUT.h"
-#include "Generated/SpriteData.inc.h"
+#include "game/LUT.h"
+#include "game/Generated/SpriteData.inc.h"
 
 #if WITH_VECTOR_TEXTURES
-#include "Textures.h"
+#include "game/Textures.h"
 #endif
 
 #if WITH_SPRITE_OUTLINES
