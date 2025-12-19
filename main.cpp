@@ -81,7 +81,7 @@ static inline void arduboy_putpixel(int16_t x, int16_t y, bool color) {
     if(x < 0 || y < 0 || x >= DISPLAY_WIDTH || y >= DISPLAY_HEIGHT) return;
     uint16_t idx = x + (y >> 3) * DISPLAY_WIDTH;
     uint8_t mask = 1 << (y & 7);
-    if(color) 
+    if(!color) 
         flipper_state->screen_buffer[idx] |= mask;
     else  
         flipper_state->screen_buffer[idx] &= ~mask;
@@ -211,7 +211,7 @@ static void input_callback(InputEvent* event, void* ctx) {
         case InputKeyDown:  state->input_state |= INPUT_DOWN; break;
         case InputKeyLeft:  state->input_state |= INPUT_LEFT; break;
         case InputKeyRight: state->input_state |= INPUT_RIGHT; break;
-        case InputKeyOk:    state->input_state |= INPUT_A; break;
+        case InputKeyOk:    state->input_state |= INPUT_B; break;
         case InputKeyBack:  state->exit_requested = true; break;
         default: break;
         }
@@ -224,7 +224,7 @@ static void input_callback(InputEvent* event, void* ctx) {
         case InputKeyDown:  state->input_state &= ~INPUT_DOWN; break;
         case InputKeyLeft:  state->input_state &= ~INPUT_LEFT; break;
         case InputKeyRight: state->input_state &= ~INPUT_RIGHT; break;
-        case InputKeyOk:    state->input_state &= ~INPUT_A; break;
+        case InputKeyOk:    state->input_state &= ~INPUT_B; break;
         default: break;
         }
     }
