@@ -50,9 +50,13 @@
 #define INPUT_A 16
 #define INPUT_B 32
 
-// Display colors
+#ifndef COLOUR_WHITE
 #define COLOUR_WHITE 1
+#endif
+
+#ifndef COLOUR_BLACK
 #define COLOUR_BLACK 0
+#endif
 
 // Angle system (256 = 360 degrees)
 #define FIXED_ANGLE_MAX 256

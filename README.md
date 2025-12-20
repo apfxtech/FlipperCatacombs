@@ -1,4 +1,4 @@
-# FlipperCatacombs (Catacombs of the damned!)
+# Catacombs of the damned! (Flipper Zero edition)
 
 ![Демо](Images/demo.gif)
 ![Скрин1](Package/screen1.png)

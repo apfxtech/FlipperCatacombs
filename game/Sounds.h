@@ -2,6 +2,8 @@
 #include <stdint.h>
 #include "game/Defines.h"
 
+#define TONES_END 0x8000
+
 class Sounds
 {
 public:

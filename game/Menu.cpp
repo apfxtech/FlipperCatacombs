@@ -16,18 +16,10 @@ void Menu::Draw()
 {
 	Platform::FillScreen(COLOUR_BLACK);
 	Font::PrintString(PSTR("CATACOMBS OF THE DAMNED"), 2, 18, COLOUR_WHITE);
-	Font::PrintString(PSTR("by @jameshhoward"), 7, 32, COLOUR_WHITE);
+	Font::PrintString(PSTR("by jhhoward & apfxtech"), 7, 16, COLOUR_WHITE);
 	Font::PrintString(PSTR("Start"), 4, 24, COLOUR_WHITE);
 	Font::PrintString(PSTR("Sound:"), 5, 24, COLOUR_WHITE);
-
-	if (Platform::IsAudioEnabled())
-	{
-		Font::PrintString(PSTR("on"), 5, 52, COLOUR_WHITE);
-	}
-	else
-	{
-		Font::PrintString(PSTR("off"), 5, 52, COLOUR_WHITE);
-	}
+    Font::PrintString(Platform::IsAudioEnabled() ? PSTR("on") : PSTR("off"), 5, 52, COLOUR_WHITE);
 	
 	Font::PrintString(PSTR(">"), 4 + selection, 16, COLOUR_WHITE);
 	
@@ -39,20 +31,24 @@ void Menu::Draw()
 void Menu::Tick()
 {
 	static uint8_t lastInput = 0;
-	
-	// Spin the RNG to have a unique(ish) starting level
 	Random();
 
-	if ((Platform::GetInput() & INPUT_DOWN) && !(lastInput & INPUT_DOWN))
+	uint8_t input = Platform::GetInput();
+
+	// Навигация вверх/вниз (теперь 3 пункта: 0, 1, 2)
+	if ((input & INPUT_DOWN) && !(lastInput & INPUT_DOWN))
 	{
-		selection = !selection;
+		selection++;
+		if (selection > 1) selection = 0;
 	}
-	if ((Platform::GetInput() & INPUT_UP) && !(lastInput & INPUT_UP))
+	if ((input & INPUT_UP) && !(lastInput & INPUT_UP))
 	{
-		selection = !selection;
+		if (selection == 0) selection = 1;
+		else selection--;
 	}
 
-	if ((Platform::GetInput() & (INPUT_A | INPUT_B)) && !(lastInput & (INPUT_A | INPUT_B)))
+	// Выбор пункта
+	if ((input & (INPUT_A | INPUT_B)) && !(lastInput & (INPUT_A | INPUT_B)))
 	{
 		switch (selection)
 		{
@@ -65,7 +61,7 @@ void Menu::Tick()
 		}
 	}
 
-	lastInput = Platform::GetInput();
+	lastInput = input;
 }
 
 void Menu::ResetTimer()
