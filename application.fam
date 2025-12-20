@@ -1,5 +1,5 @@
 App(
-    appid="catacombs",
+    appid="apfx_catacombs",
     name="Catacombs Of The Damned",
     apptype=FlipperAppType.EXTERNAL,
     entry_point="arduboy3d_app",
@@ -12,6 +12,6 @@ App(
     order=36,
     fap_author="@apfxtech",
     fap_weburl="https://github.com/apfxtech/FlipperCatacombs",
-    fap_version="0.1",
+    fap_version="1.0",
     fap_description="Play the port of the arduboy3d game on your Flipper Zero.",
 )
