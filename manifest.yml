@@ -1,26 +1,14 @@
-## This is a sample manifest file for the Flipper Apps Catalog.
-## Create one for your app in a corresponding directory in the 'applications' folder.
-
 sourcecode:
   type: git
   location:
-    ## Specify the git URL of your repository
-    origin: https://github.com/flipperdevices/flipperzero-catalog-sample-app.git
-    ## Put the full commit SHA of the commit with the app's code you want to submit
-    commit_sha: a614af3979876fdc1e9f7d2f6c93b4c8f32b1d03
-    ## (Optional) If your app is located in a subdirectory of the repository, specify it here
-    # subdir: .
-## If application.fam contains 'fap_description', it will be used as a short description
-short_description: A short app description.
-## For 'description' and 'changelog', you can use limited markdown syntax
-## You can also specify a file from your app's repository as a source with @
-description: |
-  A long app description.
-  Very long.
-  Spanning multiple lines.
+    origin: https://github.com/apfxtech/FlipperCatacombs.git
+    commit_sha: b7dc21fa7ec56c39ae96d18293e04bf6761c2798
+
+short_description: A first-person dungeon crawler ported to Flipper Zero.
+description: "@APPSTORE.md"
 changelog: "@CHANGELOG.md"
-## Unmodified screenshots from qFlipper
 screenshots:
-  - screenshots/flp0.png
-  - screenshots/flp1.png
-  - screenshots/flp2.png
+  - "package/screenshots/screen1.png"
+  - "package/screenshots/screen2.png"
+  - "package/screenshots/screen3.png"
+  - "package/screenshots/screen4.png"
