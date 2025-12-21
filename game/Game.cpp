@@ -28,11 +28,11 @@ void Game::Init() {
 }
 
 bool Game::IsInMenu() {
-    return state == State::Menu;
+    return (state != State::InGame) && (state != State::FadeOut);
 }
 
 void Game::GoToMenu() {
-    SwitchState(State::Menu);
+    SwitchState(State::FadeOut);
 }
 
 void Game::StartGame() {

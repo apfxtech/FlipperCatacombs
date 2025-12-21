@@ -3,111 +3,213 @@
 #include "game/Menu.h"
 #include "game/Font.h"
 #include "game/Game.h"
-#include "game/FixedMath.h"
 #include "game/Draw.h"
 #include "game/Generated/SpriteTypes.h"
 
+namespace
+{
+    constexpr uint8_t MENU_ITEMS_COUNT = 3;
+    constexpr uint8_t VISIBLE_ROWS = 2;
+
+    constexpr uint8_t MENU_FIRST_ROW = 4;
+    constexpr uint8_t TEXT_X = 24;
+    constexpr uint8_t CURSOR_X = 16;
+
+    static void PrintItem(uint8_t idx, uint8_t row)
+    {
+        switch (idx)
+        {
+        case 0:
+            Font::PrintString(PSTR("Singleplayer"), row, TEXT_X, COLOUR_WHITE);
+            break;
+        case 1:
+            Font::PrintString(PSTR("Multiplayer"), row, TEXT_X, COLOUR_WHITE);
+            break;
+        case 2:
+            Font::PrintString(PSTR("Sound:"), row, TEXT_X, COLOUR_WHITE);
+            Font::PrintString(Platform::IsAudioEnabled() ? PSTR("on") : PSTR("off"),
+                              row, TEXT_X + 28, COLOUR_WHITE);
+            break;
+        }
+    }
+
+    static uint8_t Wrap(int v, int n)
+    {
+        v %= n;
+        if (v < 0) v += n;
+        return (uint8_t)v;
+    }
+
+    static uint8_t MaxTop()
+    {
+        return (MENU_ITEMS_COUNT > VISIBLE_ROWS) ? (uint8_t)(MENU_ITEMS_COUNT - VISIBLE_ROWS) : 0;
+    }
+}
+
 void Menu::Init()
 {
-	selection = 0;
+    selection = 0;
+    topIndex = 0;
+    cursorPos = 0;
 }
 
 void Menu::Draw()
 {
-	Platform::FillScreen(COLOUR_BLACK);
-	Font::PrintString(PSTR("CATACOMBS OF THE DAMNED"), 2, 18, COLOUR_WHITE);
-	Font::PrintString(PSTR("by jhhoward & apfxtech"), 7, 16, COLOUR_WHITE);
-	Font::PrintString(PSTR("Start"), 4, 24, COLOUR_WHITE);
-	Font::PrintString(PSTR("Sound:"), 5, 24, COLOUR_WHITE);
-    Font::PrintString(Platform::IsAudioEnabled() ? PSTR("on") : PSTR("off"), 5, 52, COLOUR_WHITE);
-	
-	Font::PrintString(PSTR(">"), 4 + selection, 16, COLOUR_WHITE);
-	
-	const uint16_t* torchSprite = Game::globalTickFrame & 4 ? torchSpriteData1 : torchSpriteData2;
-	Renderer::DrawScaled(torchSprite, 0, 10, 9, 255);
-	Renderer::DrawScaled(torchSprite, DISPLAY_WIDTH - 18, 10, 9, 255);
+    Platform::FillScreen(COLOUR_BLACK);
+
+    Font::PrintString(PSTR("CATACOMBS OF THE DAMNED"), 2, 18, COLOUR_WHITE);
+    Font::PrintString(PSTR("by jhhoward && apfxtech"), 7, 18, COLOUR_WHITE);
+
+    for (uint8_t row = 0; row < VISIBLE_ROWS; ++row)
+    {
+        uint8_t idx = (uint8_t)(topIndex + row);
+        if (idx >= MENU_ITEMS_COUNT) break;
+        PrintItem(idx, (uint8_t)(MENU_FIRST_ROW + row));
+    }
+
+    Font::PrintString(PSTR(">"), (uint8_t)(MENU_FIRST_ROW + cursorPos), CURSOR_X, COLOUR_WHITE);
+
+    const uint16_t* torchSprite = (Game::globalTickFrame & 4) ? torchSpriteData1 : torchSpriteData2;
+    Renderer::DrawScaled(torchSprite, 0, 10, 9, 255);
+    Renderer::DrawScaled(torchSprite, DISPLAY_WIDTH - 18, 10, 9, 255);
 }
 
 void Menu::Tick()
 {
-	static uint8_t lastInput = 0;
-	Random();
+    static uint8_t lastInput = 0;
+    uint8_t input = Platform::GetInput();
 
-	uint8_t input = Platform::GetInput();
+    auto syncWindow = [&]()
+    {
+        uint8_t maxTop = MaxTop();
 
-	// Навигация вверх/вниз (теперь 3 пункта: 0, 1, 2)
-	if ((input & INPUT_DOWN) && !(lastInput & INPUT_DOWN))
-	{
-		selection++;
-		if (selection > 1) selection = 0;
-	}
-	if ((input & INPUT_UP) && !(lastInput & INPUT_UP))
-	{
-		if (selection == 0) selection = 1;
-		else selection--;
-	}
+        if (selection < topIndex)
+            topIndex = selection;
 
-	// Выбор пункта
-	if ((input & (INPUT_A | INPUT_B)) && !(lastInput & (INPUT_A | INPUT_B)))
-	{
-		switch (selection)
-		{
-		case 0:			
-			Game::StartGame();
-			break;
-		case 1:
-			Platform::SetAudioEnabled(!Platform::IsAudioEnabled());
-			break;
-		}
-	}
+        uint8_t end = (uint8_t)(topIndex + (VISIBLE_ROWS - 1));
+        if (selection > end)
+        {
+            int t = (int)selection - (VISIBLE_ROWS - 1);
+            if (t < 0) t = 0;
+            if (t > maxTop) t = maxTop;
+            topIndex = (uint8_t)t;
+        }
 
-	lastInput = input;
+        cursorPos = (uint8_t)(selection - topIndex);
+        if (cursorPos >= VISIBLE_ROWS) cursorPos = (VISIBLE_ROWS - 1);
+    };
+
+    if ((input & INPUT_DOWN) && !(lastInput & INPUT_DOWN))
+    {
+        uint8_t next = Wrap((int)selection + 1, MENU_ITEMS_COUNT);
+
+        if (cursorPos < (VISIBLE_ROWS - 1))
+        {
+            selection = next;
+            cursorPos++;
+        }
+        else
+        {
+            selection = next;
+
+            if (topIndex < MaxTop())
+            {
+                topIndex++;
+            }
+            else
+            {
+                topIndex = 0;
+                cursorPos = 0;
+            }
+        }
+
+        syncWindow();
+    }
+
+    if ((input & INPUT_UP) && !(lastInput & INPUT_UP))
+    {
+        uint8_t prev = Wrap((int)selection - 1, MENU_ITEMS_COUNT);
+
+        if (cursorPos > 0)
+        {
+            selection = prev;
+            cursorPos--;
+        }
+        else
+        {
+            selection = prev;
+
+            if (topIndex > 0)
+            {
+                topIndex--;
+            }
+            else
+            {
+                topIndex = MaxTop();
+                cursorPos = (VISIBLE_ROWS - 1);
+            }
+        }
+
+        syncWindow();
+    }
+
+    if ((input & (INPUT_A | INPUT_B)) && !(lastInput & (INPUT_A | INPUT_B)))
+    {
+        switch (selection)
+        {
+        case 0:
+            Game::StartGame();
+            break;
+        case 1:
+            Game::StartGame();
+            break;
+        case 2:
+            Platform::SetAudioEnabled(!Platform::IsAudioEnabled());
+            break;
+        }
+    }
+
+    lastInput = input;
 }
 
 void Menu::ResetTimer()
 {
-	timer = 0;
+    timer = 0;
 }
 
 void Menu::TickEnteringLevel()
 {
-	constexpr uint8_t showTime = 30;
-	
-	if(timer < showTime)
-	{
-		timer++;
-	}
-	
-	if(timer == showTime && Platform::GetInput() == 0)
-	{
-		Game::StartLevel();
-	}
+    constexpr uint8_t showTime = 30;
+
+    if (timer < showTime)
+        timer++;
+
+    if (timer == showTime && Platform::GetInput() == 0)
+        Game::StartLevel();
 }
 
 void Menu::DrawEnteringLevel()
 {
-	Platform::FillScreen(COLOUR_BLACK);
-	Font::PrintString(PSTR("Entering floor"), 3, 30, COLOUR_WHITE);
-	Font::PrintInt(Game::floor, 3, 90, COLOUR_WHITE);
-}	
+    Platform::FillScreen(COLOUR_BLACK);
+    Font::PrintString(PSTR("Entering floor"), 3, 30, COLOUR_WHITE);
+    Font::PrintInt(Game::floor, 3, 90, COLOUR_WHITE);
+}
 
 void Menu::TickGameOver()
 {
-	constexpr uint8_t minShowTime = 30;
-	
-	if(timer < minShowTime)
-	{
-		timer++;
-	}
-	
-	if(timer == minShowTime && (Platform::GetInput() & (INPUT_A | INPUT_B)))
-	{
-		timer++;
-	}
-	else if(timer == minShowTime + 1 && Platform::GetInput() == 0)
-	{
-		Game::SwitchState(Game::State::Menu);
-	}
+    constexpr uint8_t minShowTime = 30;
+
+    if (timer < minShowTime)
+        timer++;
+
+    if (timer == minShowTime && (Platform::GetInput() & (INPUT_A | INPUT_B)))
+    {
+        timer++;
+    }
+    else if (timer == minShowTime + 1 && Platform::GetInput() == 0)
+    {
+        Game::SwitchState(Game::State::Menu);
+    }
 }
 
 void Menu::DrawGameOver()
@@ -225,7 +327,7 @@ void Menu::FadeOut()
 
 		uint8_t x = (uint8_t)(fizzleFade & 0x7f);
 		uint8_t y = (uint8_t)(fizzleFade >> 7);
-		Platform::PutPixel(x, y, COLOUR_BLACK);
+		Platform::PutPixel(x, y, COLOUR_WHITE);
 
 		if (fizzleFade == startValue)
 		{
