@@ -39,7 +39,6 @@
 #define DISPLAY_HEIGHT 64
 
 // Game settings
-#define TARGET_FRAMERATE 30
 #define DEV_MODE 0
 
 // Input definitions
