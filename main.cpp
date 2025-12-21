@@ -349,6 +349,7 @@ static void render_callback(Canvas* canvas, void* ctx) {
 static void input_callback(InputEvent* event, void* ctx) {
     FlipperState* state = (FlipperState*)ctx;
     if(!state || !event) return;
+
     if(event->type == InputTypePress || event->type == InputTypeRepeat) {
         switch(event->key) {
         case InputKeyUp: state->input_state |= INPUT_UP; break;
@@ -356,7 +357,17 @@ static void input_callback(InputEvent* event, void* ctx) {
         case InputKeyLeft: state->input_state |= INPUT_LEFT; break;
         case InputKeyRight: state->input_state |= INPUT_RIGHT; break;
         case InputKeyOk: state->input_state |= INPUT_B; break;
-        case InputKeyBack: state->exit_requested = true; break;
+
+        case InputKeyBack:
+            // ✅ Если мы уже в меню — выходим из приложения
+            if(Game::IsInMenu()) {
+                state->exit_requested = true;
+            } else {
+                // ✅ Если мы не в меню (игра, геймовер, загрузка уровня, fadeout) — уходим в меню
+                Game::GoToMenu();
+            }
+            break;
+
         default: break;
         }
     } else if(event->type == InputTypeRelease) {
@@ -403,8 +414,9 @@ extern "C" int32_t arduboy3d_app(void* p) {
         return -1;
     }
     g_state->exit_requested = false;
-    g_state->audio_enabled = false;
+    g_state->audio_enabled = true;
     g_state->xbm_read_idx = 0;
+    Platform::SetAudioEnabled(g_state->audio_enabled);
     memset(g_state->screen_buffer, 0x00, BUFFER_SIZE);
     memset(g_state->xbm_buffers, 0x00, sizeof(g_state->xbm_buffers));
     Game::Init();

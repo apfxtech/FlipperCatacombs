@@ -8,56 +8,56 @@
 
 class Entity;
 
-struct Stats
-{
-	EnemyType killedBy;
-	uint8_t enemyKills[(int)EnemyType::NumEnemyTypes];
-	uint8_t chestsOpened;
-	uint8_t crownsCollected;
-	uint8_t scrollsCollected;
-	uint8_t coinsCollected;
+struct Stats {
+    EnemyType killedBy;
+    uint8_t enemyKills[(int)EnemyType::NumEnemyTypes];
+    uint8_t chestsOpened;
+    uint8_t crownsCollected;
+    uint8_t scrollsCollected;
+    uint8_t coinsCollected;
 
-	void Reset();
+    void Reset();
 };
 
-class Game
-{
+class Game {
 public:
-	static uint8_t globalTickFrame;
+    static uint8_t globalTickFrame;
 
-	enum class State : uint8_t
-	{
-		Menu,
-		EnteringLevel,
-		InGame,
-		GameOver,
-		FadeOut
-	};
+    enum class State : uint8_t {
+        Menu,
+        EnteringLevel,
+        InGame,
+        GameOver,
+        FadeOut
+    };
 
-	static void Init();
-	static void Tick();
-	static void Draw();
+    static void Init();
+    static void Tick();
+    static void Draw();
 
-	static void StartGame();
-	static void StartLevel();
-	static void NextLevel();
-	static void GameOver();
-	
-	static void SwitchState(State newState);
+    static bool IsInMenu();
+    static void GoToMenu();
 
-	static void ShowMessage(const char* message);
+    static void StartGame();
+    static void StartLevel();
+    static void NextLevel();
+    static void GameOver();
 
-	static Player player;
+    static void SwitchState(State newState);
 
-	static const char* displayMessage;
-	static uint8_t displayMessageTime;
-	static uint8_t floor;
+    static void ShowMessage(const char* message);
 
-	static Stats stats;
+    static Player player;
+
+    static const char* displayMessage;
+    static uint8_t displayMessageTime;
+    static uint8_t floor;
+
+    static Stats stats;
 
 private:
-	static void TickInGame();
-		
-	static Menu menu;
-	static State state;
+    static void TickInGame();
+
+    static Menu menu;
+    static State state;
 };
