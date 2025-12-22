@@ -1,7 +1,7 @@
 # Catacombs of the damned! (Flipper Zero edition)
 
-![s3](Package/screenshots/screen2.png)
-![s4](Package/screenshots/screen1.png)
+![s3](package/screenshots/screen2.png)
+![s4](package/screenshots/screen1.png)
 
 
 **Проклятые катакомбы!** — это шутер от первого лица / данжен-кроулер для [миниатюрной игровой системы Arduboy](https://www.arduboy.com), в котором вы исследуете 10 этажей случайно генерируемого подземелья, уничтожаете монстров волшебными огненными шарами и собираете как можно больше добычи.
