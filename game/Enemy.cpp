@@ -392,7 +392,7 @@ void EnemyManager::Draw()
 	{
 		if(enemy.IsValid())
 		{
-			bool invert = enemy.GetState() == EnemyState::Stunned && ((Renderer::globalRenderFrame >> 1) & 1);
+			bool invert = enemy.GetState() == EnemyState::Stunned && (Renderer::globalRenderFrame & 1);
 			int frameOffset = (enemy.GetType() == EnemyType::Bat || enemy.GetState() == EnemyState::Moving) && (Game::globalTickFrame & 8) == 0 ? 32 : 0;
 
 			const EnemyArchetype* archetype = enemy.GetArchetype();
