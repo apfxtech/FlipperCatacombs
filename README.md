@@ -8,7 +8,7 @@
 
 Игра частично вдохновлена серией игр [Catacomb 3D](https://www.gog.com/game/catacombs_pack).
 
-![d1](Package/demo.gif)
+![d1](package/demo.gif)
 
 Особенности:
 - Плавный 3D-геймплей!
