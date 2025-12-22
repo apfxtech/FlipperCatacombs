@@ -1,4 +1,12 @@
 #pragma once
+#include <cstdint>
+#include <cstring>
+
+static inline const void* pgm_read_ptr_safe(const void* p) {
+    const void* out;
+    std::memcpy(&out, p, sizeof(out));
+    return out;
+}
 
 // Platform detection
 #if defined(_WIN32)
@@ -23,7 +31,6 @@
 #define PSTR(s) (s)
 #define pgm_read_byte(x) (*((const uint8_t*)(x)))
 #define pgm_read_word(x) (*((const uint16_t*)(x)))
-#define pgm_read_ptr(x) (*((const uintptr_t*)(x)))
 #define pgm_read_dword(x) (*((const uint32_t*)(x)))
 #define strlen_P(x) strlen(x)
 #define strcpy_P(dst, src) strcpy(dst, src)

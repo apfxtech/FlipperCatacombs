@@ -38,7 +38,7 @@ struct EnemyArchetype
 	uint8_t spriteScale;
 	AnchorType spriteAnchor;
 
-	const uint16_t* GetSpriteData() const { return (const uint16_t*) pgm_read_ptr(&spriteData); }
+	const uint16_t* GetSpriteData() const {return static_cast<const uint16_t*>(pgm_read_ptr_safe(&spriteData));}
 	uint8_t GetHP() const				{ return pgm_read_byte(&hp); }
 	uint8_t GetMovementSpeed() const	{ return pgm_read_byte(&movementSpeed); }
 	uint8_t GetAttackStrength() const	{ return pgm_read_byte(&attackStrength); }
