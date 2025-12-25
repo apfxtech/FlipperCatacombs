@@ -52,4 +52,3 @@ const uint8_t* const textures[] PROGMEM =
 	vectorTexture1,
 	vectorTexture2,
 };
-
