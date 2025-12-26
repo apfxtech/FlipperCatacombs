@@ -12,6 +12,6 @@ App(
     order=36,
     fap_author="@apfxtech",
     fap_weburl="https://github.com/apfxtech/FlipperCatacombs",
-    fap_version="2.0",
+    fap_version="2.1",
     fap_description="Play the port of the arduboy3d game on your Flipper Zero.",
 )

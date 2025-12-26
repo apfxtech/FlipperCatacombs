@@ -1,3 +1,6 @@
+v2.1:
+eeprom sync
+
 v2.0:
 Framerate fix
 
