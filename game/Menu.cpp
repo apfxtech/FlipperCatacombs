@@ -6,6 +6,7 @@
 #include "game/Draw.h"
 #include "game/Textures.h"
 #include "game/Generated/SpriteTypes.h"
+#include "lib/EEPROM.h"
 
 namespace {
 constexpr uint8_t MENU_ITEMS_COUNT = 3;
@@ -139,6 +140,8 @@ void Menu::Tick() {
             break;
         case 2:
             Platform::SetAudioEnabled(!Platform::IsAudioEnabled());
+            EEPROM.update(2, Platform::IsAudioEnabled());
+            EEPROM.commit();
             break;
         }
     }

@@ -16,6 +16,7 @@
 #include "game/Platform.h"
 #include "game/Defines.h"
 #include "game/Sounds.h"
+#include "lib/EEPROM.h"
 
 #define DISPLAY_WIDTH    128
 #define DISPLAY_HEIGHT   64
@@ -427,8 +428,14 @@ extern "C" int32_t arduboy3d_app(void* p) {
 
     memset(g_state->back_buffer, 0x00, BUFFER_SIZE);
     memset(g_state->front_buffer, 0x00, BUFFER_SIZE);
+    EEPROM.begin();
+    furi_delay_ms(50);
+    if(EEPROM.read(2)){
+        Platform::SetAudioEnabled(true);
+    } else {
+        Platform::SetAudioEnabled(false);
+    }
 
-    Platform::SetAudioEnabled(true);
     g_state->gui = (Gui*)furi_record_open(RECORD_GUI);
     gui_add_framebuffer_callback(g_state->gui, framebuffer_commit_callback, g_state);
     g_state->canvas = gui_direct_draw_acquire(g_state->gui);
