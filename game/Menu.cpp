@@ -8,29 +8,16 @@
 #include "game/Generated/SpriteTypes.h"
 #include "lib/EEPROM.h"
 
+constexpr int EEPROM_ADDR_SCORE = 20; // 20-21
+constexpr int EEPROM_ADDR_HIGH = 22; // 22-23
+
 namespace {
-constexpr uint8_t MENU_ITEMS_COUNT = 3;
+constexpr uint8_t MENU_ITEMS_COUNT = 5;
 constexpr uint8_t VISIBLE_ROWS = 2;
 
 constexpr uint8_t MENU_FIRST_ROW = 4;
 constexpr uint8_t TEXT_X = 24;
 constexpr uint8_t CURSOR_X = 16;
-
-static void PrintItem(uint8_t idx, uint8_t row) {
-    switch(idx) {
-    case 0:
-        Font::PrintString(PSTR("Singleplayer"), row, TEXT_X, COLOUR_WHITE);
-        break;
-    case 1:
-        Font::PrintString(PSTR("Multiplayer"), row, TEXT_X, COLOUR_WHITE);
-        break;
-    case 2:
-        Font::PrintString(PSTR("Sound:"), row, TEXT_X, COLOUR_WHITE);
-        Font::PrintString(
-            Platform::IsAudioEnabled() ? PSTR("on") : PSTR("off"), row, TEXT_X + 28, COLOUR_WHITE);
-        break;
-    }
-}
 
 static uint8_t Wrap(int v, int n) {
     v %= n;
@@ -41,6 +28,30 @@ static uint8_t Wrap(int v, int n) {
 static uint8_t MaxTop() {
     return (MENU_ITEMS_COUNT > VISIBLE_ROWS) ? (uint8_t)(MENU_ITEMS_COUNT - VISIBLE_ROWS) : 0;
 }
+}
+
+void Menu::PrintItem(uint8_t idx, uint8_t row) {
+    switch(idx) {
+    case 0:
+        Font::PrintString(PSTR("Play"), row, TEXT_X, COLOUR_WHITE);
+        break;
+    case 1:
+        Font::PrintString(PSTR("Connect"), row, TEXT_X, COLOUR_WHITE);
+        break;
+    case 2:
+        Font::PrintString(PSTR("Sound:"), row, TEXT_X, COLOUR_WHITE);
+        Font::PrintString(
+            Platform::IsAudioEnabled() ? PSTR("on") : PSTR("off"), row, TEXT_X + 28, COLOUR_WHITE);
+        break;
+    case 3:
+        Font::PrintString(PSTR("Score:"), row, TEXT_X, COLOUR_WHITE);
+        Font::PrintInt(score_, row, TEXT_X + 28, COLOUR_WHITE);
+        break;
+    case 4:
+        Font::PrintString(PSTR("High:"), row, TEXT_X, COLOUR_WHITE);
+        Font::PrintInt(high_, row, TEXT_X + 28, COLOUR_WHITE);
+        break;
+    }
 }
 
 void Menu::Init() {
@@ -143,6 +154,8 @@ void Menu::Tick() {
             EEPROM.update(2, Platform::IsAudioEnabled());
             EEPROM.commit();
             break;
+        default:
+            break;
         }
     }
 
@@ -184,6 +197,9 @@ void Menu::DrawGameOver() {
     Font::PrintString(PSTR("GAME OVER"), 0, 64 - 18, COLOUR_WHITE);
 
     switch(Game::stats.killedBy) {
+    case EnemyType::Exit:
+        Font::PrintString(PSTR("You have left the game."), 1, 14, COLOUR_WHITE);
+        break;
     case EnemyType::None:
         Font::PrintString(PSTR("You escaped the catacombs!"), 1, 12, COLOUR_WHITE);
         break;
@@ -222,7 +238,6 @@ void Menu::DrawGameOver() {
     Renderer::DrawScaled(coinsSpriteData, 30, secondRow, 9, 255);
     Font::PrintInt(Game::stats.coinsCollected, 6, 48, COLOUR_WHITE);
 
-    ///
     int offset = (Game::globalTickFrame & 8) == 0 ? 32 : 0;
     Font::PrintString(PSTR("KILLS:"), 2, 84, COLOUR_WHITE);
 
@@ -263,6 +278,7 @@ void Menu::DrawGameOver() {
     finalScore += Game::stats.enemyKills[(int)EnemyType::Bat] * batKillBonus;
     finalScore += Game::stats.enemyKills[(int)EnemyType::Spider] * spiderKillBonus;
 
+    SetScore(finalScore);
     Font::PrintString(PSTR("FINAL SCORE:"), 7, 20, COLOUR_WHITE);
     Font::PrintInt(finalScore, 7, 72, COLOUR_WHITE);
 }
@@ -283,20 +299,14 @@ static inline void DrawEraseTile8x8(int16_t x, int16_t y, const uint8_t* frame8b
 }
 
 void Menu::DrawTransitionFrame(uint8_t frameIndex) {
-    // достаём указатель на нужный кадр (после w,h)
     const uint8_t w = pgm_read_byte(transitionSet + 0); // 8
     const uint8_t h = pgm_read_byte(transitionSet + 1); // 8
     (void)w;
     (void)h;
 
     const uint8_t* framePtr = transitionSet + 2 + (uint16_t)frameIndex * 8;
-
-    // как в showFadeOutIn(): старт снизу-справа и идём влево, потом строкой выше
     int16_t tileX = 120;
     int16_t tileY = 56;
-
-    // важно: у тебя в примере условие было странное (while <= 64 и tileY -= 8)
-    // правильный вариант для экрана 64px: y = 56..0
     while(true) {
         DrawEraseTile8x8(tileX, tileY, framePtr);
 
@@ -322,4 +332,30 @@ void Menu::FadeOut() {
         timer = 0;
         Game::SwitchState(Game::State::GameOver);
     }
+}
+
+void Menu::ReadScore() {
+    score_ = (uint16_t)EEPROM.read(EEPROM_ADDR_SCORE) |
+             ((uint16_t)EEPROM.read(EEPROM_ADDR_SCORE + 1) << 8);
+
+    high_ = (uint16_t)EEPROM.read(EEPROM_ADDR_HIGH) |
+            ((uint16_t)EEPROM.read(EEPROM_ADDR_HIGH + 1) << 8);
+}
+
+void Menu::SetScore(uint16_t score) {
+    if (score <= 0) return;
+    uint16_t storedHigh = (uint16_t)EEPROM.read(EEPROM_ADDR_HIGH) |
+                          ((uint16_t)EEPROM.read(EEPROM_ADDR_HIGH + 1) << 8);
+
+    uint16_t newHigh = storedHigh;
+    if(score > newHigh) newHigh = score;
+
+    score_ = score;
+    high_ = newHigh;
+
+    EEPROM.update(EEPROM_ADDR_SCORE + 0, (uint8_t)(score & 0xFF));
+    EEPROM.update(EEPROM_ADDR_SCORE + 1, (uint8_t)(score >> 8));
+    EEPROM.update(EEPROM_ADDR_HIGH + 0, (uint8_t)(newHigh & 0xFF));
+    EEPROM.update(EEPROM_ADDR_HIGH + 1, (uint8_t)(newHigh >> 8));
+    EEPROM.commit();
 }

@@ -28,6 +28,7 @@ public:
     void Init();
     void Draw();
     void Tick();
+    void ReadScore();
 	
     void TickEnteringLevel();
     void DrawEnteringLevel();
@@ -39,11 +40,15 @@ public:
     void FadeOut();
 
 private:
+    void SetScore(uint16_t score);
     void DrawTransitionFrame(uint8_t frameIndex);
+    void PrintItem(uint8_t idx, uint8_t row);
 
     uint8_t selection = 0;
     uint8_t topIndex  = 0;
     uint8_t cursorPos = 0;
+    uint16_t score_ = 0;
+    uint16_t high_  = 0;
 
     union
     {

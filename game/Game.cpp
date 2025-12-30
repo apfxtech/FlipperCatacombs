@@ -32,6 +32,7 @@ bool Game::IsInMenu() {
 }
 
 void Game::GoToMenu() {
+    Game::stats.killedBy = EnemyType::Exit;
     SwitchState(State::FadeOut);
 }
 

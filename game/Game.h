@@ -21,6 +21,7 @@ struct Stats {
 
 class Game {
 public:
+    static Menu menu;
     static uint8_t globalTickFrame;
 
     enum class State : uint8_t {
@@ -57,7 +58,5 @@ public:
 
 private:
     static void TickInGame();
-
-    static Menu menu;
     static State state;
 };

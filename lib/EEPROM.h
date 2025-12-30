@@ -41,7 +41,9 @@ public:
         ensureLoaded_();
     }
 
-    int length() const { return kSize; }
+    int length() const {
+        return kSize;
+    }
 
     uint8_t read(int addr) const {
         ensureLoaded_();
@@ -65,7 +67,7 @@ public:
         }
     }
 
-    template<typename T>
+    template <typename T>
     T& get(int addr, T& out) const {
         ensureLoaded_();
         if(addr < 0 || addr + (int)sizeof(T) > kSize) return out;
@@ -73,7 +75,7 @@ public:
         return out;
     }
 
-    template<typename T>
+    template <typename T>
     const T& put(int addr, const T& in) {
         ensureLoaded_();
         if(addr < 0 || addr + (int)sizeof(T) > kSize) return in;
@@ -117,7 +119,9 @@ public:
         return ok;
     }
 
-    bool isDirty() const { return dirty_; }
+    bool isDirty() const {
+        return dirty_;
+    }
 
 private:
     void ensureLoaded_() const {
@@ -173,13 +177,16 @@ private:
             return false;
         }
 
-        bool ok = storage_file_open(file, file_path_, FSAM_WRITE, FSOM_CREATE_ALWAYS);
+        bool ok = storage_file_open(file, file_path_, FSAM_WRITE, FSOM_OPEN_ALWAYS);
         bool success = false;
-
+        
         if(ok) {
+            (void)storage_file_seek(file, 0, true);
+
             size_t wr = storage_file_write(file, mem_, kSize);
             (void)storage_file_sync(file);
             (void)storage_file_close(file);
+
             success = (wr == (size_t)kSize);
         } else {
             (void)storage_file_close(file);

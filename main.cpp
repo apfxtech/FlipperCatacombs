@@ -405,8 +405,6 @@ static void timer_callback(void* ctx) {
     state->invert_frame = inv;
     furi_mutex_release(state->fb_mutex);
 
-    // ВОТ ТУТ обновление дисплея:
-    // canvas_commit() гарантированно вызовет framebuffer_commit_callback(data,...)
     canvas_commit(state->canvas);
 
     state->in_frame = false;
@@ -435,6 +433,7 @@ extern "C" int32_t arduboy3d_app(void* p) {
     } else {
         Platform::SetAudioEnabled(false);
     }
+    Game::menu.ReadScore();
 
     g_state->gui = (Gui*)furi_record_open(RECORD_GUI);
     gui_add_framebuffer_callback(g_state->gui, framebuffer_commit_callback, g_state);
