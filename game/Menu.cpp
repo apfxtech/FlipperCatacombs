@@ -15,9 +15,9 @@ namespace {
 constexpr uint8_t MENU_ITEMS_COUNT = 5;
 constexpr uint8_t VISIBLE_ROWS = 2;
 
-constexpr uint8_t MENU_FIRST_ROW = 4;
-constexpr uint8_t TEXT_X = 24;
-constexpr uint8_t CURSOR_X = 16;
+constexpr uint8_t MENU_FIRST_ROW = 6;
+constexpr uint8_t TEXT_X = 10;
+constexpr uint8_t CURSOR_X = 4;
 
 static uint8_t Wrap(int v, int n) {
     v %= n;
@@ -61,10 +61,11 @@ void Menu::Init() {
 }
 
 void Menu::Draw() {
-    Platform::FillScreen(COLOUR_BLACK);
+    //Platform::FillScreen(COLOUR_BLACK);
+    Platform::DrawSolidBitmap(0,0,menu_screen,128,64);
 
-    Font::PrintString(PSTR("CATACOMBS OF THE DAMNED"), 2, 18, COLOUR_WHITE);
-    Font::PrintString(PSTR("by jhhoward && apfxtech"), 7, 18, COLOUR_WHITE);
+    //Font::PrintString(PSTR("CATACOMBS OF THE DAMNED"), 2, 18, COLOUR_WHITE);
+    //Font::PrintString(PSTR("by jhhoward && apfxtech"), 7, 18, COLOUR_WHITE);
 
     for(uint8_t row = 0; row < VISIBLE_ROWS; ++row) {
         uint8_t idx = (uint8_t)(topIndex + row);
@@ -74,10 +75,9 @@ void Menu::Draw() {
 
     Font::PrintString(PSTR(">"), (uint8_t)(MENU_FIRST_ROW + cursorPos), CURSOR_X, COLOUR_WHITE);
 
-    const uint16_t* torchSprite = (Game::globalTickFrame & 4) ? torchSpriteData1 :
-                                                                torchSpriteData2;
-    Renderer::DrawScaled(torchSprite, 0, 10, 9, 255);
-    Renderer::DrawScaled(torchSprite, DISPLAY_WIDTH - 18, 10, 9, 255);
+    //const uint16_t* torchSprite = (Game::globalTickFrame & 4) ? torchSpriteData1 : torchSpriteData2;
+    //Renderer::DrawScaled(torchSprite, 0, 10, 9, 255);
+    //Renderer::DrawScaled(torchSprite, DISPLAY_WIDTH - 18, 10, 9, 255);
 }
 
 void Menu::Tick() {
@@ -198,7 +198,7 @@ void Menu::DrawGameOver() {
 
     switch(Game::stats.killedBy) {
     case EnemyType::Exit:
-        Font::PrintString(PSTR("You have left the game."), 1, 14, COLOUR_WHITE);
+        Font::PrintString(PSTR("You have left the game."), 1, 18, COLOUR_WHITE);
         break;
     case EnemyType::None:
         Font::PrintString(PSTR("You escaped the catacombs!"), 1, 12, COLOUR_WHITE);

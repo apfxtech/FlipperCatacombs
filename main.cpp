@@ -270,6 +270,23 @@ void Platform::DrawSolidBitmap(int16_t x, int16_t y, const uint8_t* bmp) {
     }
 }
 
+void Platform::DrawSolidBitmap(int16_t x, int16_t y, const uint8_t* bmp, uint8_t w, uint8_t h) {
+    if(!bmp) return;
+    const uint8_t* data = bmp + 2;
+    uint8_t pages = (h + 7) >> 3;
+    for(uint8_t page = 0; page < pages; page++) {
+        for(uint8_t i = 0; i < w; i++) {
+            uint8_t byte = data[i + page * w];
+            for(uint8_t b = 0; b < 8; b++) {
+                uint8_t py = (uint8_t)(page * 8 + b);
+                if(py >= h) break;
+                bool pixel = (byte & (1 << b)) != 0;
+                set_pixel(x + i, y + py, pixel ? COLOUR_WHITE : COLOUR_BLACK);
+            }
+        }
+    }
+}
+
 void Platform::DrawSprite(int16_t x, int16_t y, const uint8_t* bmp, uint8_t frame) {
     if(!bmp) return;
     uint8_t w = bmp[0], h = bmp[1];
@@ -428,7 +445,7 @@ extern "C" int32_t arduboy3d_app(void* p) {
     memset(g_state->front_buffer, 0x00, BUFFER_SIZE);
     EEPROM.begin();
     furi_delay_ms(50);
-    if(EEPROM.read(2)){
+    if(EEPROM.read(2)) {
         Platform::SetAudioEnabled(true);
     } else {
         Platform::SetAudioEnabled(false);
@@ -468,7 +485,7 @@ extern "C" int32_t arduboy3d_app(void* p) {
         furi_record_close(RECORD_INPUT_EVENTS);
         g_state->input_events = NULL;
     }
-    
+
     if(g_state->gui) {
         gui_direct_draw_release(g_state->gui);
         gui_remove_framebuffer_callback(g_state->gui, framebuffer_commit_callback, g_state);
