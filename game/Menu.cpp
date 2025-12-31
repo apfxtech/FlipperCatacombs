@@ -198,7 +198,7 @@ void Menu::DrawGameOver() {
 
     switch(Game::stats.killedBy) {
     case EnemyType::Exit:
-        Font::PrintString(PSTR("You have left the game."), 1, 14, COLOUR_WHITE);
+        Font::PrintString(PSTR("You have left the game."), 1, 18, COLOUR_WHITE);
         break;
     case EnemyType::None:
         Font::PrintString(PSTR("You escaped the catacombs!"), 1, 12, COLOUR_WHITE);
