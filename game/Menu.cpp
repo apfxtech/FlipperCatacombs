@@ -144,10 +144,10 @@ void Menu::Tick() {
     if((input & (INPUT_A | INPUT_B)) && !(lastInput & (INPUT_A | INPUT_B))) {
         switch(selection) {
         case 0:
-            Game::StartGame();
+            Game::StartGameStory();
             break;
         case 1:
-            Game::StartGame();
+            Game::StartGameServer();
             break;
         case 2:
             Platform::SetAudioEnabled(!Platform::IsAudioEnabled());
@@ -358,4 +358,22 @@ void Menu::SetScore(uint16_t score) {
     EEPROM.update(EEPROM_ADDR_HIGH + 0, (uint8_t)(newHigh & 0xFF));
     EEPROM.update(EEPROM_ADDR_HIGH + 1, (uint8_t)(newHigh >> 8));
     EEPROM.commit();
+}
+
+void Menu::DrawEstablishingNetwork() {
+    Platform::FillScreen(COLOUR_BLACK);
+
+    Font::PrintString(PSTR("CATACOMBS OF THE DAMNED"), 2, 18, COLOUR_WHITE);
+
+    if (!PlatformNet::IsAvailableForWrite()) {
+        Font::PrintString(PSTR("Connect to network"), 5, 24, COLOUR_WHITE);
+    } else {
+        if (Game::globalTickFrame & 8) {
+            Font::PrintString(PSTR("Looking for player"), 5, 24, COLOUR_WHITE);
+        }
+    }
+
+    const uint16_t* torchSprite = (Game::globalTickFrame & 4) ? torchSpriteData1 : torchSpriteData2;
+    Renderer::DrawScaled(torchSprite, 0, 10, 9, 255);
+    Renderer::DrawScaled(torchSprite, DISPLAY_WIDTH - 18, 10, 9, 255);
 }

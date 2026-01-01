@@ -1,5 +1,6 @@
 #include <furi.h>
 #include <furi_hal.h>
+#include <furi_hal_usb_cdc.h>
 #include <gui/gui.h>
 #include <input/input.h>
 #include <notification/notification.h>
@@ -428,7 +429,7 @@ extern "C" int32_t arduboy3d_app(void* p) {
     memset(g_state->front_buffer, 0x00, BUFFER_SIZE);
     EEPROM.begin();
     furi_delay_ms(50);
-    if(EEPROM.read(2)){
+    if(EEPROM.read(2)) {
         Platform::SetAudioEnabled(true);
     } else {
         Platform::SetAudioEnabled(false);
@@ -468,7 +469,7 @@ extern "C" int32_t arduboy3d_app(void* p) {
         furi_record_close(RECORD_INPUT_EVENTS);
         g_state->input_events = NULL;
     }
-    
+
     if(g_state->gui) {
         gui_direct_draw_release(g_state->gui);
         gui_remove_framebuffer_callback(g_state->gui, framebuffer_commit_callback, g_state);

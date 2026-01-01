@@ -39,6 +39,8 @@ public:
     void ResetTimer();
     void FadeOut();
 
+    void DrawEstablishingNetwork();
+
 private:
     void SetScore(uint16_t score);
     void DrawTransitionFrame(uint8_t frameIndex);
