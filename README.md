@@ -1,16 +1,15 @@
-# Catacombs of the damned! (Flipper Zero edition)
+# Catacombs of the damned! 
 
-![s3](package/screenshots/screen2.png)
-![s4](package/screenshots/screen1.png)
-
+![s3](package/banner.png)
 
 **Проклятые катакомбы!** — это шутер от первого лица / данжен-кроулер для [миниатюрной игровой системы Arduboy](https://www.arduboy.com), в котором вы исследуете 10 этажей случайно генерируемого подземелья, уничтожаете монстров волшебными огненными шарами и собираете как можно больше добычи.
 
 Игра частично вдохновлена серией игр [Catacomb 3D](https://www.gog.com/game/catacombs_pack).
 
+### Особенности:
+
 ![d1](package/demo.gif)
 
-Особенности:
 - Плавный 3D-геймплей!
 - Звуковые эффекты!
 - Случайно генерируемые уровни!
@@ -20,6 +19,13 @@
 ### О проекте
 
 Данный репозиторий является **форком** оригинального проекта [Arduboy3D](https://github.com/jhhoward/Arduboy3D). Основная цель этого форка — портирование игры с консоли Arduboy на **Flipper Zero**.
+
+![s1](package/screenshots/screen1.png)
+![s3](package/screenshots/screen3.png)
+![s4](package/screenshots/screen4.png)
+![s6](package/screenshots/screen6.png)
+![s7](package/screenshots/screen7.png)
+![s8](package/screenshots/screen8.png)
 
 ### Инструкция по сборке
 
@@ -48,7 +54,7 @@ git clone --recursive https://github.com/flipperdevices/flipperzero-firmware.git
 2. Соберите приложение (FAP-файл) с помощью команды:
 
 ```bash
-./fbt fap_catacombs
+./fbt fap_apfx_catacombs && mv build/f7-firmware-D/.extapps/apfx_catacombs.fap ./applications_user/Arduboy3D/package
 ```
 
 После успешного завершения сборки готовый файл приложения можно будет найти в папке `build/`, откуда его следует перенести на SD-карту вашего Flipper Zero в папку `apps/`.

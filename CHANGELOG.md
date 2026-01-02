@@ -1,3 +1,6 @@
+v2.2:
+Restyle menu
+
 v2.1:
 eeprom sync
 
