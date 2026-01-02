@@ -163,28 +163,28 @@ void Menu::Draw() {
     case 0:
         lootSprite = chestSpriteData;
         enemySprite = skeletonSpriteData;
-        num1 = Game::stats.chestsOpened;
-        num2 = Game::stats.enemyKills[(int)EnemyType::Skeleton];
+        num1 = vars_[0];
+        num2 = vars_[4];
         break;
     case 1:
         lootSprite = scrollSpriteData;
         enemySprite = mageSpriteData;
-        num1 = Game::stats.scrollsCollected;
-        num2 = Game::stats.enemyKills[(int)EnemyType::Mage];
+        num1 = vars_[2];
+        num2 = vars_[5];
         break;
     case 2:
         lootSprite = coinsSpriteData;
         enemySprite = batSpriteData;
-        num1 = Game::stats.coinsCollected;
-        num2 = Game::stats.enemyKills[(int)EnemyType::Bat];
+        num1 = vars_[3];
+        num2 = vars_[6];
         flip = true;
         color = COLOUR_BLACK;
         break;
     case 3:
         lootSprite = crownSpriteData;
         enemySprite = spiderSpriteData;
-        num1 = Game::stats.crownsCollected;
-        num2 = Game::stats.enemyKills[(int)EnemyType::Spider];
+        num1 = vars_[1];
+        num2 = vars_[7];
         break;
     }
 
@@ -485,6 +485,16 @@ void Menu::ReadScore() {
 void Menu::SetScore(uint16_t score) {
     if(score == 0) return;
 
+    static unsigned long lastSaveTime = 0;
+    unsigned long now = furi_get_tick();
+
+    if(lastSaveTime != 0 && (now - lastSaveTime) < 2000) {
+        score_ = score;
+        return;
+    }
+
+    lastSaveTime = now;
+
     uint16_t storedHigh = (uint16_t)EEPROM.read(EEPROM_BASE_ADDR + 2) |
                           ((uint16_t)EEPROM.read(EEPROM_BASE_ADDR + 3) << 8);
 
@@ -499,6 +509,7 @@ void Menu::SetScore(uint16_t score) {
     EEPROM.update(addr++, (uint8_t)(score >> 8));
     EEPROM.update(addr++, (uint8_t)(newHigh & 0xFF));
     EEPROM.update(addr++, (uint8_t)(newHigh >> 8));
+
     for(int i = 0; i < 8; i++) {
         EEPROM.update(addr++, vars_[i]);
     }
