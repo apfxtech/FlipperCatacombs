@@ -37,7 +37,8 @@ inline int16_t FixedCos(uint8_t angle) {
 }
 
 // uint16_t Random();
-void SeedRandom(uint16_t seed);
+// void SeedRandom();
+// void SeedRandom(uint16_t seed);
 
 inline uint16_t Random() {
     uint32_t r = furi_hal_random_get();

@@ -434,6 +434,7 @@ extern "C" int32_t arduboy3d_app(void* p) {
         Platform::SetAudioEnabled(false);
     }
     Game::menu.ReadScore();
+    //SeedRandom();
 
     g_state->gui = (Gui*)furi_record_open(RECORD_GUI);
     gui_add_framebuffer_callback(g_state->gui, framebuffer_commit_callback, g_state);

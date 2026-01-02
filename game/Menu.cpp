@@ -8,16 +8,23 @@
 #include "game/Generated/SpriteTypes.h"
 #include "lib/EEPROM.h"
 
-constexpr int EEPROM_ADDR_SCORE = 20; // 20-21
-constexpr int EEPROM_ADDR_HIGH = 22; // 22-23
+#include <stdio.h>
+#include <string.h>
+
+constexpr int EEPROM_ADDR_SCORE = 20;
+constexpr int EEPROM_ADDR_HIGH = 22;
 
 namespace {
-constexpr uint8_t MENU_ITEMS_COUNT = 5;
+constexpr uint8_t MENU_ITEMS_COUNT = 4;
 constexpr uint8_t VISIBLE_ROWS = 2;
 
 constexpr uint8_t MENU_FIRST_ROW = 4;
-constexpr uint8_t TEXT_X = 24;
-constexpr uint8_t CURSOR_X = 16;
+constexpr uint8_t TEXT_X = 22;
+constexpr uint8_t CURSOR_X = 14;
+
+constexpr uint8_t SPLASH_TIME_TICKS = 60;
+static uint8_t splashTimer = 0;
+static bool splashActive = true;
 
 static uint8_t Wrap(int v, int n) {
     v %= n;
@@ -36,18 +43,15 @@ void Menu::PrintItem(uint8_t idx, uint8_t row) {
         Font::PrintString(PSTR("Play"), row, TEXT_X, COLOUR_WHITE);
         break;
     case 1:
-        Font::PrintString(PSTR("Connect"), row, TEXT_X, COLOUR_WHITE);
-        break;
-    case 2:
         Font::PrintString(PSTR("Sound:"), row, TEXT_X, COLOUR_WHITE);
         Font::PrintString(
             Platform::IsAudioEnabled() ? PSTR("on") : PSTR("off"), row, TEXT_X + 28, COLOUR_WHITE);
         break;
-    case 3:
+    case 2:
         Font::PrintString(PSTR("Score:"), row, TEXT_X, COLOUR_WHITE);
         Font::PrintInt(score_, row, TEXT_X + 28, COLOUR_WHITE);
         break;
-    case 4:
+    case 3:
         Font::PrintString(PSTR("High:"), row, TEXT_X, COLOUR_WHITE);
         Font::PrintInt(high_, row, TEXT_X + 28, COLOUR_WHITE);
         break;
@@ -58,13 +62,22 @@ void Menu::Init() {
     selection = 0;
     topIndex = 0;
     cursorPos = 0;
+
+    splashTimer = 0;
+    splashActive = true;
 }
 
 void Menu::Draw() {
     Platform::FillScreen(COLOUR_BLACK);
 
+    if(splashActive) {
+        Font::PrintString(PSTR("FLIPPER GAME"), 2, 42, COLOUR_WHITE);
+        Font::PrintString(PSTR("JHHOWARD & APFXTECH"), 4, 26, COLOUR_WHITE);
+        Font::PrintString(PSTR("PRESENT"), 6, 52, COLOUR_WHITE);
+        return;
+    }
+
     Font::PrintString(PSTR("CATACOMBS OF THE DAMNED"), 2, 18, COLOUR_WHITE);
-    Font::PrintString(PSTR("by jhhoward && apfxtech"), 7, 18, COLOUR_WHITE);
 
     for(uint8_t row = 0; row < VISIBLE_ROWS; ++row) {
         uint8_t idx = (uint8_t)(topIndex + row);
@@ -74,15 +87,55 @@ void Menu::Draw() {
 
     Font::PrintString(PSTR(">"), (uint8_t)(MENU_FIRST_ROW + cursorPos), CURSOR_X, COLOUR_WHITE);
 
+    const int animOffset = ((Game::globalTickFrame & 8) == 0) ? 32 : 0;
+    const uint8_t enemyShow = (uint8_t)((Game::globalTickFrame / 64) & 3);
+    const uint16_t* enemySprite = nullptr;
+    const uint16_t* lootSprite = nullptr;
+    bool flip = false;
+
+    switch(enemyShow) {
+    case 0:
+        lootSprite = chestSpriteData;
+        enemySprite = skeletonSpriteData;
+        flip = false;
+        break;
+    case 1:
+        lootSprite = scrollSpriteData;
+        enemySprite = mageSpriteData;
+        flip = false;
+        break;
+    case 2:
+        lootSprite = coinsSpriteData;
+        enemySprite = batSpriteData;
+        flip = true;
+        break;
+    case 3:
+        lootSprite = crownSpriteData;
+        enemySprite = spiderSpriteData;
+        flip = false;
+        break;
+    }
+
     const uint16_t* torchSprite = (Game::globalTickFrame & 4) ? torchSpriteData1 :
                                                                 torchSpriteData2;
+    Renderer::DrawScaled(lootSprite, 72, 29, 9, 255);
+    Renderer::DrawScaled(enemySprite + animOffset, 96, 30, 9, 255, flip);
     Renderer::DrawScaled(torchSprite, 0, 10, 9, 255);
     Renderer::DrawScaled(torchSprite, DISPLAY_WIDTH - 18, 10, 9, 255);
+    Font::PrintInt(0, MENU_FIRST_ROW + 1, 90, COLOUR_WHITE);
+    Font::PrintInt(0, MENU_FIRST_ROW + 1, 114, COLOUR_WHITE);
 }
 
 void Menu::Tick() {
     static uint8_t lastInput = 0;
     uint8_t input = Platform::GetInput();
+
+    if(splashActive) {
+        if(splashTimer < SPLASH_TIME_TICKS) splashTimer++;
+        if(splashTimer >= SPLASH_TIME_TICKS) splashActive = false;
+        lastInput = input;
+        return;
+    }
 
     auto syncWindow = [&]() {
         uint8_t maxTop = MaxTop();
@@ -147,9 +200,6 @@ void Menu::Tick() {
             Game::StartGame();
             break;
         case 1:
-            Game::StartGame();
-            break;
-        case 2:
             Platform::SetAudioEnabled(!Platform::IsAudioEnabled());
             EEPROM.update(2, Platform::IsAudioEnabled());
             EEPROM.commit();
@@ -253,7 +303,6 @@ void Menu::DrawGameOver() {
     Renderer::DrawScaled(spiderSpriteData + offset, 96, secondRow, 9, 255);
     Font::PrintInt(Game::stats.enemyKills[(int)EnemyType::Spider], 6, 114, COLOUR_WHITE);
 
-    // Calculate final score here
     uint16_t finalScore = 0;
     constexpr int finishBonus = 500;
     constexpr int levelBonus = 20;
@@ -283,24 +332,21 @@ void Menu::DrawGameOver() {
     Font::PrintInt(finalScore, 7, 72, COLOUR_WHITE);
 }
 
-#include <stdio.h>
-
 static inline void DrawEraseTile8x8(int16_t x, int16_t y, const uint8_t* frame8bytes) {
-    // frame8bytes: 8 байт, каждый байт = строка 8 пикселей (бит7 слева)
     for(uint8_t row = 0; row < 8; row++) {
         uint8_t rowMask = pgm_read_byte(frame8bytes + row);
         while(rowMask) {
-            uint8_t b = (uint8_t)__builtin_ctz((unsigned)rowMask); // индекс младшего 1-бита
-            uint8_t col = 7 - b; // т.к. у нас бит7 = левый пиксель
-            Platform::PutPixel(x + col, y + row, COLOUR_WHITE); // "erase"
+            uint8_t b = (uint8_t)__builtin_ctz((unsigned)rowMask);
+            uint8_t col = 7 - b;
+            Platform::PutPixel(x + col, y + row, COLOUR_WHITE);
             rowMask &= (uint8_t)(rowMask - 1);
         }
     }
 }
 
 void Menu::DrawTransitionFrame(uint8_t frameIndex) {
-    const uint8_t w = pgm_read_byte(transitionSet + 0); // 8
-    const uint8_t h = pgm_read_byte(transitionSet + 1); // 8
+    const uint8_t w = pgm_read_byte(transitionSet + 0);
+    const uint8_t h = pgm_read_byte(transitionSet + 1);
     (void)w;
     (void)h;
 
@@ -320,9 +366,9 @@ void Menu::DrawTransitionFrame(uint8_t frameIndex) {
 }
 
 void Menu::FadeOut() {
-    static uint8_t timer = 0; // 0..29
-    constexpr uint8_t totalTime = 32; // 1 секунда
-    constexpr uint8_t totalFrames = 8; // 0..7
+    static uint8_t timer = 0;
+    constexpr uint8_t totalTime = 32;
+    constexpr uint8_t totalFrames = 8;
 
     uint8_t frameIndex = (uint16_t)timer * totalFrames / totalTime;
     if(frameIndex > totalFrames - 1) frameIndex = totalFrames - 1;
@@ -343,7 +389,7 @@ void Menu::ReadScore() {
 }
 
 void Menu::SetScore(uint16_t score) {
-    if (score <= 0) return;
+    if(score <= 0) return;
     uint16_t storedHigh = (uint16_t)EEPROM.read(EEPROM_ADDR_HIGH) |
                           ((uint16_t)EEPROM.read(EEPROM_ADDR_HIGH + 1) << 8);
 
