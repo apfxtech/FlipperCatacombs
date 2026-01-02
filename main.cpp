@@ -349,10 +349,10 @@ static void input_events_callback(const void* value, void* ctx) {
             uint32_t held_ms = furi_get_tick() - state->back_hold_start;
             if(held_ms >= HOLD_TIME_MS) {
                 state->back_hold_handled = true;
-                if(Game::InGame())
-                    Game::GoToMenu();
-                else
+                if(Game::InMenu())
                     state->exit_requested = true;
+                else
+                    Game::GoToMenu();
             }
         }
     } else if(event->type == InputTypeRelease) {

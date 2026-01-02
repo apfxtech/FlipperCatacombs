@@ -27,8 +27,8 @@ void Game::Init() {
     EnemyManager::Init();
 }
 
-bool Game::InGame() {
-    return (state == State::InGame);
+bool Game::InMenu() {
+    return (state != State::InGame);
 }
 
 void Game::GoToMenu() {
@@ -87,11 +87,13 @@ void Game::Draw() {
     case State::EnteringLevel:
         menu.DrawEnteringLevel();
         break;
+    case State::TransitionToLevel:
+        menu.TransitionToLevel();
+        break;
     case State::InGame: {
         Renderer::camera.x = player.x;
         Renderer::camera.y = player.y;
         Renderer::camera.angle = player.angle;
-
         Renderer::Render();
     } break;
     case State::GameOver:
@@ -141,6 +143,8 @@ void Game::Tick() {
         return;
     case State::GameOver:
         menu.TickGameOver();
+        return;
+    case State::TransitionToLevel:
         return;
     default:
         return;
