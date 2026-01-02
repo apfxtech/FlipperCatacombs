@@ -303,13 +303,8 @@ static void framebuffer_commit_callback(
     (void)orientation;
     if(furi_mutex_acquire(state->fb_mutex, 0) != FuriStatusOk) return;
     const uint8_t* src = state->front_buffer;
-    bool inv = state->invert_frame;
-    if(!inv) {
-        memcpy(data, src, BUFFER_SIZE);
-    } else {
-        for(size_t i = 0; i < BUFFER_SIZE; i++) {
-            data[i] = (uint8_t)(src[i] ^ 0xFF);
-        }
+    for(size_t i = 0; i < BUFFER_SIZE; i++) {
+        data[i] = (uint8_t)(src[i] ^ 0xFF);
     }
 
     furi_mutex_release(state->fb_mutex);
@@ -354,10 +349,10 @@ static void input_events_callback(const void* value, void* ctx) {
             uint32_t held_ms = furi_get_tick() - state->back_hold_start;
             if(held_ms >= HOLD_TIME_MS) {
                 state->back_hold_handled = true;
-                if(Game::IsInMenu())
-                    state->exit_requested = true;
-                else
+                if(Game::InGame())
                     Game::GoToMenu();
+                else
+                    state->exit_requested = true;
             }
         }
     } else if(event->type == InputTypeRelease) {
@@ -397,12 +392,9 @@ static void timer_callback(void* ctx) {
     Game::Tick();
     Game::Draw();
 
-    bool inv = !Game::IsInMenu();
-
     // back -> front
     furi_mutex_acquire(state->fb_mutex, FuriWaitForever);
     memcpy(state->front_buffer, state->back_buffer, BUFFER_SIZE);
-    state->invert_frame = inv;
     furi_mutex_release(state->fb_mutex);
 
     canvas_commit(state->canvas);
@@ -428,7 +420,7 @@ extern "C" int32_t arduboy3d_app(void* p) {
     memset(g_state->front_buffer, 0x00, BUFFER_SIZE);
     EEPROM.begin();
     furi_delay_ms(50);
-    if(EEPROM.read(2)){
+    if(EEPROM.read(2)) {
         Platform::SetAudioEnabled(true);
     } else {
         Platform::SetAudioEnabled(false);
@@ -469,7 +461,7 @@ extern "C" int32_t arduboy3d_app(void* p) {
         furi_record_close(RECORD_INPUT_EVENTS);
         g_state->input_events = NULL;
     }
-    
+
     if(g_state->gui) {
         gui_direct_draw_release(g_state->gui);
         gui_remove_framebuffer_callback(g_state->gui, framebuffer_commit_callback, g_state);

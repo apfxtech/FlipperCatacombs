@@ -6,6 +6,8 @@
 #include "game/Draw.h"
 #include "game/Textures.h"
 #include "game/Generated/SpriteTypes.h"
+#include "game/Map.h"
+#include "game/FixedMath.h"
 #include "lib/EEPROM.h"
 
 #include <stdio.h>
@@ -35,6 +37,70 @@ static uint8_t Wrap(int v, int n) {
 static uint8_t MaxTop() {
     return (MENU_ITEMS_COUNT > VISIBLE_ROWS) ? (uint8_t)(MENU_ITEMS_COUNT - VISIBLE_ROWS) : 0;
 }
+void DrawMenuRoom() {
+    const int16_t leftWall = 1 * CELL_SIZE;
+    const int16_t rightWall = 4 * CELL_SIZE;
+    const int16_t topWall = 1 * CELL_SIZE;
+    const int16_t bottomWall = 4 * CELL_SIZE;
+
+    Renderer::camera.x = (int16_t)((leftWall + rightWall) / 2);
+    Renderer::camera.y = (int16_t)((topWall + bottomWall) / 2);
+
+    static uint8_t ang = 0;
+    static uint8_t acc = 0;
+    acc = (uint8_t)(acc + 85);
+    if(acc < 85) ang = (uint8_t)(ang + 1);
+    Renderer::camera.angle = ang;
+
+    Renderer::camera.tilt = 0;
+    Renderer::camera.bob = 0;
+
+    Renderer::numBufferSlicesFilled = 0;
+    Renderer::numQueuedDrawables = 0;
+
+    for(uint8_t n = 0; n < DISPLAY_WIDTH; n++) {
+        Renderer::wBuffer[n] = 0;
+        Renderer::horizonBuffer[n] = HORIZON;
+    }
+
+    Renderer::camera.cellX = Renderer::camera.x / CELL_SIZE;
+    Renderer::camera.cellY = Renderer::camera.y / CELL_SIZE;
+
+    Renderer::camera.rotCos = FixedCos(-Renderer::camera.angle);
+    Renderer::camera.rotSin = FixedSin(-Renderer::camera.angle);
+    Renderer::camera.clipCos = FixedCos(-Renderer::camera.angle + CLIP_ANGLE);
+    Renderer::camera.clipSin = FixedSin(-Renderer::camera.angle + CLIP_ANGLE);
+
+    Renderer::DrawBackground();
+
+#if WITH_IMAGE_TEXTURES
+    const uint16_t* texture = wallTextureData;
+#elif WITH_VECTOR_TEXTURES
+    const uint8_t* texture = vectorTexture0;
+#endif
+
+    const int16_t x0 = leftWall;
+    const int16_t y0 = topWall;
+    const int16_t x1 = rightWall;
+    const int16_t y1 = bottomWall;
+
+    const bool edgeLeft = true;
+    const bool edgeRight = true;
+    const bool shadeEdge = false;
+
+#if WITH_TEXTURES
+    Renderer::DrawWall(texture, x0, y0, x1, y0, edgeLeft, edgeRight, shadeEdge);
+    Renderer::DrawWall(texture, x1, y0, x1, y1, edgeLeft, edgeRight, shadeEdge);
+    Renderer::DrawWall(texture, x1, y1, x0, y1, edgeLeft, edgeRight, shadeEdge);
+    Renderer::DrawWall(texture, x0, y1, x0, y0, edgeLeft, edgeRight, shadeEdge);
+#else
+    Renderer::DrawWall(x0, y0, x1, y0, edgeLeft, edgeRight, shadeEdge);
+    Renderer::DrawWall(x1, y0, x1, y1, edgeLeft, edgeRight, shadeEdge);
+    Renderer::DrawWall(x1, y1, x0, y1, edgeLeft, edgeRight, shadeEdge);
+    Renderer::DrawWall(x0, y1, x0, y0, edgeLeft, edgeRight, shadeEdge);
+#endif
+}
+
 }
 
 void Menu::PrintItem(uint8_t idx, uint8_t row) {
@@ -68,7 +134,7 @@ void Menu::Init() {
 }
 
 void Menu::Draw() {
-    Platform::FillScreen(COLOUR_BLACK);
+    DrawMenuRoom();
 
     if(splashActive) {
         Font::PrintString(PSTR("FLIPPER GAME"), 2, 42, COLOUR_WHITE);
@@ -85,45 +151,44 @@ void Menu::Draw() {
         PrintItem(idx, (uint8_t)(MENU_FIRST_ROW + row));
     }
 
-    Font::PrintString(PSTR(">"), (uint8_t)(MENU_FIRST_ROW + cursorPos), CURSOR_X, COLOUR_WHITE);
-
     const int animOffset = ((Game::globalTickFrame & 8) == 0) ? 32 : 0;
     const uint8_t enemyShow = (uint8_t)((Game::globalTickFrame / 64) & 3);
     const uint16_t* enemySprite = nullptr;
     const uint16_t* lootSprite = nullptr;
     bool flip = false;
+    uint8_t color = COLOUR_WHITE;
 
     switch(enemyShow) {
     case 0:
         lootSprite = chestSpriteData;
         enemySprite = skeletonSpriteData;
-        flip = false;
         break;
     case 1:
         lootSprite = scrollSpriteData;
         enemySprite = mageSpriteData;
-        flip = false;
         break;
     case 2:
         lootSprite = coinsSpriteData;
         enemySprite = batSpriteData;
         flip = true;
+        color = COLOUR_BLACK;
         break;
     case 3:
         lootSprite = crownSpriteData;
         enemySprite = spiderSpriteData;
-        flip = false;
         break;
     }
 
     const uint16_t* torchSprite = (Game::globalTickFrame & 4) ? torchSpriteData1 :
                                                                 torchSpriteData2;
-    Renderer::DrawScaled(lootSprite, 72, 29, 9, 255);
-    Renderer::DrawScaled(enemySprite + animOffset, 96, 30, 9, 255, flip);
+    Renderer::DrawScaled(lootSprite, 64, 29, 9, 255);
+    Renderer::DrawScaled(enemySprite + animOffset, 94, 30, 9, 255, flip, color);
     Renderer::DrawScaled(torchSprite, 0, 10, 9, 255);
     Renderer::DrawScaled(torchSprite, DISPLAY_WIDTH - 18, 10, 9, 255);
-    Font::PrintInt(0, MENU_FIRST_ROW + 1, 90, COLOUR_WHITE);
+    Font::PrintInt(0, MENU_FIRST_ROW + 1, 84, COLOUR_WHITE);
     Font::PrintInt(0, MENU_FIRST_ROW + 1, 114, COLOUR_WHITE);
+
+    Font::PrintString(PSTR(">"), (uint8_t)(MENU_FIRST_ROW + cursorPos), CURSOR_X, COLOUR_WHITE);
 }
 
 void Menu::Tick() {
@@ -225,9 +290,9 @@ void Menu::TickEnteringLevel() {
 }
 
 void Menu::DrawEnteringLevel() {
-    Platform::FillScreen(COLOUR_BLACK);
-    Font::PrintString(PSTR("Entering floor"), 3, 30, COLOUR_WHITE);
-    Font::PrintInt(Game::floor, 3, 90, COLOUR_WHITE);
+    DrawMenuRoom();
+    Font::PrintString(PSTR("Entering floor"), 3, 30, COLOUR_BLACK);
+    Font::PrintInt(Game::floor, 3, 90, COLOUR_BLACK);
 }
 
 void Menu::TickGameOver() {
@@ -241,67 +306,66 @@ void Menu::TickGameOver() {
         Game::SwitchState(Game::State::Menu);
     }
 }
-
 void Menu::DrawGameOver() {
-    Platform::FillScreen(COLOUR_BLACK);
-    Font::PrintString(PSTR("GAME OVER"), 0, 64 - 18, COLOUR_WHITE);
+    Platform::FillScreen(COLOUR_WHITE);
+    Font::PrintString(PSTR("GAME OVER"), 0, 64 - 18, COLOUR_BLACK);
 
     switch(Game::stats.killedBy) {
     case EnemyType::Exit:
-        Font::PrintString(PSTR("You have left the game."), 1, 18, COLOUR_WHITE);
+        Font::PrintString(PSTR("You have left the game."), 1, 18, COLOUR_BLACK);
         break;
     case EnemyType::None:
-        Font::PrintString(PSTR("You escaped the catacombs!"), 1, 12, COLOUR_WHITE);
+        Font::PrintString(PSTR("You escaped the catacombs!"), 1, 12, COLOUR_BLACK);
         break;
     case EnemyType::Mage:
-        Font::PrintString(PSTR("Killed by a mage on level"), 1, 8, COLOUR_WHITE);
-        Font::PrintInt(Game::floor, 1, 112, COLOUR_WHITE);
+        Font::PrintString(PSTR("Killed by a mage on level"), 1, 8, COLOUR_BLACK);
+        Font::PrintInt(Game::floor, 1, 112, COLOUR_BLACK);
         break;
     case EnemyType::Skeleton:
-        Font::PrintString(PSTR("Killed by a knight on level"), 1, 4, COLOUR_WHITE);
-        Font::PrintInt(Game::floor, 1, 116, COLOUR_WHITE);
+        Font::PrintString(PSTR("Killed by a knight on level"), 1, 4, COLOUR_BLACK);
+        Font::PrintInt(Game::floor, 1, 116, COLOUR_BLACK);
         break;
     case EnemyType::Bat:
-        Font::PrintString(PSTR("Killed by a bat on level"), 1, 10, COLOUR_WHITE);
-        Font::PrintInt(Game::floor, 1, 110, COLOUR_WHITE);
+        Font::PrintString(PSTR("Killed by a bat on level"), 1, 10, COLOUR_BLACK);
+        Font::PrintInt(Game::floor, 1, 110, COLOUR_BLACK);
         break;
     case EnemyType::Spider:
-        Font::PrintString(PSTR("Killed by a spider on level"), 1, 4, COLOUR_WHITE);
-        Font::PrintInt(Game::floor, 1, 116, COLOUR_WHITE);
+        Font::PrintString(PSTR("Killed by a spider on level"), 1, 4, COLOUR_BLACK);
+        Font::PrintInt(Game::floor, 1, 116, COLOUR_BLACK);
         break;
     }
 
-    Font::PrintString(PSTR("LOOT:"), 2, 20, COLOUR_WHITE);
+    Font::PrintString(PSTR("LOOT:"), 2, 20, COLOUR_BLACK);
 
     constexpr uint8_t firstRow = 21;
     constexpr uint8_t secondRow = 38;
 
-    Renderer::DrawScaled(chestSpriteData, 0, firstRow, 9, 255);
-    Font::PrintInt(Game::stats.chestsOpened, 4, 18, COLOUR_WHITE);
+    Renderer::DrawScaled(chestSpriteData, 0, firstRow, 9, 255, false, COLOUR_WHITE);
+    Font::PrintInt(Game::stats.chestsOpened, 4, 18, COLOUR_BLACK);
 
-    Renderer::DrawScaled(crownSpriteData, 0, secondRow, 9, 255);
-    Font::PrintInt(Game::stats.crownsCollected, 6, 18, COLOUR_WHITE);
+    Renderer::DrawScaled(crownSpriteData, 0, secondRow, 9, 255, false, COLOUR_WHITE);
+    Font::PrintInt(Game::stats.crownsCollected, 6, 18, COLOUR_BLACK);
 
-    Renderer::DrawScaled(scrollSpriteData, 30, firstRow, 9, 255);
-    Font::PrintInt(Game::stats.scrollsCollected, 4, 48, COLOUR_WHITE);
+    Renderer::DrawScaled(scrollSpriteData, 30, firstRow, 9, 255, false, COLOUR_WHITE);
+    Font::PrintInt(Game::stats.scrollsCollected, 4, 48, COLOUR_BLACK);
 
-    Renderer::DrawScaled(coinsSpriteData, 30, secondRow, 9, 255);
-    Font::PrintInt(Game::stats.coinsCollected, 6, 48, COLOUR_WHITE);
+    Renderer::DrawScaled(coinsSpriteData, 30, secondRow, 9, 255, false, COLOUR_WHITE);
+    Font::PrintInt(Game::stats.coinsCollected, 6, 48, COLOUR_BLACK);
 
     int offset = (Game::globalTickFrame & 8) == 0 ? 32 : 0;
-    Font::PrintString(PSTR("KILLS:"), 2, 84, COLOUR_WHITE);
+    Font::PrintString(PSTR("KILLS:"), 2, 84, COLOUR_BLACK);
 
-    Renderer::DrawScaled(skeletonSpriteData + offset, 66, firstRow, 9, 255);
-    Font::PrintInt(Game::stats.enemyKills[(int)EnemyType::Skeleton], 4, 84, COLOUR_WHITE);
+    Renderer::DrawScaled(skeletonSpriteData + offset, 66, firstRow, 9, 255, false, COLOUR_WHITE);
+    Font::PrintInt(Game::stats.enemyKills[(int)EnemyType::Skeleton], 4, 84, COLOUR_BLACK);
 
-    Renderer::DrawScaled(mageSpriteData + offset, 66, secondRow, 9, 255);
-    Font::PrintInt(Game::stats.enemyKills[(int)EnemyType::Mage], 6, 84, COLOUR_WHITE);
+    Renderer::DrawScaled(mageSpriteData + offset, 66, secondRow, 9, 255, false, COLOUR_WHITE);
+    Font::PrintInt(Game::stats.enemyKills[(int)EnemyType::Mage], 6, 84, COLOUR_BLACK);
 
-    Renderer::DrawScaled(batSpriteData + offset, 96, firstRow, 9, 255, true);
-    Font::PrintInt(Game::stats.enemyKills[(int)EnemyType::Bat], 4, 114, COLOUR_WHITE);
+    Renderer::DrawScaled(batSpriteData + offset, 96, firstRow, 9, 255, true, COLOUR_BLACK);
+    Font::PrintInt(Game::stats.enemyKills[(int)EnemyType::Bat], 4, 114, COLOUR_BLACK);
 
-    Renderer::DrawScaled(spiderSpriteData + offset, 96, secondRow, 9, 255);
-    Font::PrintInt(Game::stats.enemyKills[(int)EnemyType::Spider], 6, 114, COLOUR_WHITE);
+    Renderer::DrawScaled(spiderSpriteData + offset, 96, secondRow, 9, 255, false, COLOUR_WHITE);
+    Font::PrintInt(Game::stats.enemyKills[(int)EnemyType::Spider], 6, 114, COLOUR_BLACK);
 
     uint16_t finalScore = 0;
     constexpr int finishBonus = 500;
@@ -316,7 +380,6 @@ void Menu::DrawGameOver() {
     constexpr int spiderKillBonus = 4;
 
     finalScore += (Game::floor - 1) * levelBonus;
-
     if(Game::stats.killedBy == EnemyType::None) finalScore += finishBonus;
     finalScore += Game::stats.chestsOpened * chestBonus;
     finalScore += Game::stats.crownsCollected * crownBonus;
@@ -328,8 +391,8 @@ void Menu::DrawGameOver() {
     finalScore += Game::stats.enemyKills[(int)EnemyType::Spider] * spiderKillBonus;
 
     SetScore(finalScore);
-    Font::PrintString(PSTR("FINAL SCORE:"), 7, 20, COLOUR_WHITE);
-    Font::PrintInt(finalScore, 7, 72, COLOUR_WHITE);
+    Font::PrintString(PSTR("FINAL SCORE:"), 7, 20, COLOUR_BLACK);
+    Font::PrintInt(finalScore, 7, 72, COLOUR_BLACK);
 }
 
 static inline void DrawEraseTile8x8(int16_t x, int16_t y, const uint8_t* frame8bytes) {

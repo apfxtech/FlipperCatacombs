@@ -36,7 +36,8 @@ public:
     static void Tick();
     static void Draw();
 
-    static bool IsInMenu();
+    static bool InGame();
+    static bool InGameOver();
     static void GoToMenu();
 
     static void StartGame();

@@ -27,8 +27,8 @@ void Game::Init() {
     EnemyManager::Init();
 }
 
-bool Game::IsInMenu() {
-    return (state != State::InGame) && (state != State::FadeOut);
+bool Game::InGame() {
+    return (state == State::InGame);
 }
 
 void Game::GoToMenu() {
