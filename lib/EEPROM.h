@@ -198,10 +198,7 @@ private:
     }
 
     static uint32_t now_ms_() {
-        const uint32_t tick = furi_get_tick();
-        const uint32_t hz = furi_kernel_get_tick_frequency();
-        if(hz == 0) return tick;
-        return (tick * 1000u) / hz;
+        return furi_get_tick();
     }
 
 private:

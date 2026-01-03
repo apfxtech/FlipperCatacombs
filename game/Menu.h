@@ -110,7 +110,7 @@ private:
 
     uint16_t score_ = 0;
     uint16_t high_ = 0;
-    uint8_t vars_[8] = {0};
+    uint8_t vars_[9] = {0};
 
     union {
         uint16_t timer;

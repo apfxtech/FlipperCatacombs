@@ -121,7 +121,6 @@ void Renderer::DrawWallLine(
     }
 }
 #endif
-
 #if WITH_IMAGE_TEXTURES
 void Renderer::DrawWallSegment(
     const uint16_t* texture,
@@ -167,12 +166,15 @@ void Renderer::DrawWallSegment(
     }
 
     int16_t dx = x2 - x1;
+    if(dx <= 0) return;
+
     int16_t werror = dx / 2;
     int16_t w = w1;
     int16_t dw;
     int8_t wstep;
+
 #if WITH_IMAGE_TEXTURES
-    uint8_t du = u2clip - u1clip;
+    uint8_t du = (uint8_t)(u2clip - u1clip);
     int16_t uerror = werror;
     uint8_t u = u1clip;
 #endif
@@ -185,17 +187,18 @@ void Renderer::DrawWallSegment(
         wstep = -1;
     }
 
-    //constexpr uint8_t wallColour = COLOUR_WHITE;
     constexpr uint8_t edgeColour = COLOUR_BLACK;
 
     uint8_t segmentClipLeft = (uint8_t)x1;
-    uint8_t segmentClipRight = x2 < DISPLAY_WIDTH ? (uint8_t)x2 : DISPLAY_WIDTH - 1;
+    uint8_t segmentClipRight = (x2 < DISPLAY_WIDTH) ? (uint8_t)x2 : (uint8_t)(DISPLAY_WIDTH - 1);
 
     for(int x = x1; x < DISPLAY_WIDTH; x++) {
-        bool drawSlice = x >= 0 && wBuffer[x] < w;
-        bool shadeSlice = shadeEdge && (x & 1) == 0;
+        // NOTE: x is >= x1 and x1 is clamped to >=0 above, so x>=0 always here.
+        bool drawSlice = (wBuffer[x] < w);
+        bool shadeSlice = shadeEdge && ((x & 1) == 0);
 
-        int8_t horizon = horizonBuffer[x];
+        // Use wider type for safe math
+        int16_t horizon = (int16_t)horizonBuffer[x];
 
         if(drawSlice) {
             uint8_t sliceMask = 0xff;
@@ -208,45 +211,53 @@ void Renderer::DrawWallSegment(
 
 #if WITH_IMAGE_TEXTURES
             {
-                uint8_t y1 = w > horizon ? 0 : horizon - w;
-                uint8_t y2 = horizon + w > DISPLAY_HEIGHT ? DISPLAY_HEIGHT : horizon + w;
+                // Clip vertical extents (already safe here)
+                uint8_t y1s = (w > horizon) ? 0 : (uint8_t)(horizon - w);
+                uint8_t y2s = (horizon + w > DISPLAY_HEIGHT) ? DISPLAY_HEIGHT : (uint8_t)(horizon + w);
 
-                DrawVLine(x, y1, y2, sliceMask);
+                DrawVLine(x, y1s, y2s, sliceMask);
+
                 uint16_t textureData = pgm_read_word(&texture[u % 16]);
-                const uint16_t wallSize = w * 2;
-                uint16_t wallPos = y1 - (horizon - w);
+                const uint16_t wallSize = (uint16_t)(w * 2);
+                uint16_t wallPos = (uint16_t)(y1s - (horizon - w));
 
-                for(uint8_t y = y1; y < y2; y++) {
-                    uint8_t v = (16 * wallPos) / wallSize;
+                for(uint8_t y = y1s; y < y2s; y++) {
+                    uint8_t v = (uint8_t)((16u * wallPos) / wallSize);
                     uint16_t mask = pgm_read_word(&scaleDrawReadMasks[v]);
 
                     if((textureData & mask) == 0) {
-                        Platform::PutPixel(x, y, 0);
+                        Platform::PutPixel((uint8_t)x, y, 0);
                     }
-
                     wallPos++;
                 }
             }
 #else
-            int8_t extent = w > 64 ? 64 : w;
-            Platform::DrawVLine(x, horizon - extent, horizon + extent, sliceMask);
-            Platform::PutPixel(x, horizon + extent, edgeColour);
-            Platform::PutPixel(x, horizon - extent, edgeColour);
+            // -------- FIX: hard clip Y to screen to prevent OOB writes --------
+            // Original code used horizon±extent without clipping; with extent=64 this goes outside 0..63.
+            int16_t extent = (w > 64) ? 64 : w;
+            int16_t yTop = horizon - extent;
+            int16_t yBot = horizon + extent;
+
+            if(yTop < 0) yTop = 0;
+            if(yBot > (DISPLAY_HEIGHT - 1)) yBot = (DISPLAY_HEIGHT - 1);
+
+            if(yTop <= yBot) {
+                Platform::DrawVLine((uint8_t)x, (int16_t)yTop, (int16_t)yBot, sliceMask);
+                Platform::PutPixel((uint8_t)x, (uint8_t)yTop, edgeColour);
+                Platform::PutPixel((uint8_t)x, (uint8_t)yBot, edgeColour);
+            }
 #endif
 
             if(wBuffer[x] == 0) {
                 numBufferSlicesFilled++;
             }
 
-            if(w > 255)
-                wBuffer[x] = 255;
-            else
-                wBuffer[x] = (uint8_t)w;
+            wBuffer[x] = (w > 255) ? 255 : (uint8_t)w;
         } else {
             if(x == segmentClipLeft) {
                 segmentClipLeft++;
             } else if(x < segmentClipRight) {
-                segmentClipRight = x;
+                segmentClipRight = (uint8_t)x;
                 break;
             }
         }
@@ -254,20 +265,22 @@ void Renderer::DrawWallSegment(
         if(x == x2) break;
 
         werror -= dw;
-
         while(werror < 0) {
             w += wstep;
             werror += dx;
 
+            // These pixels can also go OOB. Clip them too.
             if(drawSlice && werror < 0 && w <= DISPLAY_HEIGHT / 2) {
-                Platform::PutPixel(x, horizon + w - 1, edgeColour);
-                Platform::PutPixel(x, horizon - w, edgeColour);
+                int16_t yA = horizon + w - 1;
+                int16_t yB = horizon - w;
+
+                if((uint16_t)yA < DISPLAY_HEIGHT) Platform::PutPixel((uint8_t)x, (uint8_t)yA, edgeColour);
+                if((uint16_t)yB < DISPLAY_HEIGHT) Platform::PutPixel((uint8_t)x, (uint8_t)yB, edgeColour);
             }
         }
 
 #if WITH_IMAGE_TEXTURES
         uerror -= du;
-
         while(uerror < 0) {
             u++;
             uerror += dx;
@@ -291,46 +304,42 @@ void Renderer::DrawWallSegment(
         uint8_t u2 = pgm_read_byte(texPtr++);
         uint8_t v2 = pgm_read_byte(texPtr++);
 
-        //if(u1clip != 0 || u2clip != 128)
-        //	continue;
-
         if(u2 < u1clip || u1 > u2clip) continue;
 
         if(u1 < u1clip) {
-            if(u2 != u1) v1 += (u1clip - u1) * (v2 - v1) / (u2 - u1);
+            if(u2 != u1) v1 = (uint8_t)(v1 + (uint8_t)((u1clip - u1) * (int16_t)(v2 - v1) / (int16_t)(u2 - u1)));
             u1 = u1clip;
         }
         if(u2 > u2clip) {
-            if(u2 != u1) v2 += (u2clip - u2) * (v1 - v2) / (u1 - u2);
+            if(u2 != u1) v2 = (uint8_t)(v2 + (uint8_t)((u2clip - u2) * (int16_t)(v1 - v2) / (int16_t)(u1 - u2)));
             u2 = u2clip;
         }
 
-        u1 = (128 * (u1 - u1clip)) / (u2clip - u1clip);
-        u2 = (128 * (u2 - u1clip)) / (u2clip - u1clip);
+        // Normalize u to 0..128 within the clipped interval
+        u1 = (uint8_t)((128u * (uint16_t)(u1 - u1clip)) / (uint16_t)(u2clip - u1clip));
+        u2 = (uint8_t)((128u * (uint16_t)(u2 - u1clip)) / (uint16_t)(u2clip - u1clip));
 
-        int16_t outU1 = (((int32_t)u1 * dx) >> 7) + x1;
-        int16_t outU2 = (((int32_t)u2 * dx) >> 7) + x1;
+        int16_t outU1 = (int16_t)((((int32_t)u1 * dx) >> 7) + x1);
+        int16_t outU2 = (int16_t)((((int32_t)u2 * dx) >> 7) + x1);
 
-        int16_t interpw1 = ((u1 * (w2 - w1)) >> 7) + w1;
-        int16_t interpw2 = ((u2 * (w2 - w1)) >> 7) + w1;
+        int16_t interpw1 = (int16_t)(((int16_t)u1 * (w2 - w1)) >> 7) + w1;
+        int16_t interpw2 = (int16_t)(((int16_t)u2 * (w2 - w1)) >> 7) + w1;
 
-        int16_t outV1 = (interpw1 * v1) >> 6;
-        int16_t outV2 = (interpw2 * v2) >> 6;
+        int16_t outV1 = (int16_t)((interpw1 * (int16_t)v1) >> 6);
+        int16_t outV2 = (int16_t)((interpw2 * (int16_t)v2) >> 6);
 
-        //uint8_t horizon = horizonBuffer[x]
-        //DrawLine(ScreenSurface, outU1, HORIZON - interpw1 + outV1, outU2, HORIZON - interpw2 + outV2, edgeColour, edgeColour, edgeColour);
         DrawWallLine(
             outU1,
-            HORIZON - interpw1 + outV1,
+            (int16_t)(HORIZON - interpw1 + outV1),
             outU2,
-            HORIZON - interpw2 + outV2,
+            (int16_t)(HORIZON - interpw2 + outV2),
             segmentClipLeft,
             segmentClipRight,
             edgeColour);
-        //DrawWallLine(outU1, -interpw1 + outV1, outU2, -interpw2 + outV2, edgeColour);
     }
 #endif
 }
+
 
 bool Renderer::isFrustrumClipped(int16_t x, int16_t y) {
     if((camera.clipCos * (x - camera.cellX) - camera.clipSin * (y - camera.cellY)) < -512)

@@ -15,6 +15,28 @@
 
 constexpr int EEPROM_BASE_ADDR = 20;
 
+struct ObjDesc {
+    const uint16_t* sprite;
+    bool animated;
+    bool invert;
+    uint8_t varsIndex;
+};
+
+static const ObjDesc kObjects[] = {
+    { chestSpriteData,    false, false, 0 },
+    { crownSpriteData,    false, false, 1 },
+    { scrollSpriteData,   false, false, 2 },
+    { coinsSpriteData,    false, false, 3 },
+    { skeletonSpriteData, true,  false, 4 },
+    { mageSpriteData,     true,  false, 5 },
+    { batSpriteData,      true,  true,  6 },
+    { spiderSpriteData,   true,  false, 7 },
+    { exitSpriteData,     false, false, 8 }
+};
+
+static constexpr uint8_t kObjectsCount = (uint8_t)(sizeof(kObjects) / sizeof(kObjects[0]));
+static constexpr uint8_t SHIFT_MASK = 63;
+
 namespace {
 constexpr uint8_t MENU_ITEMS_COUNT = 4;
 constexpr uint8_t VISIBLE_ROWS = 2;
@@ -36,6 +58,7 @@ static uint8_t Wrap(int v, int n) {
 static uint8_t MaxTop() {
     return (MENU_ITEMS_COUNT > VISIBLE_ROWS) ? (uint8_t)(MENU_ITEMS_COUNT - VISIBLE_ROWS) : 0;
 }
+
 void DrawMenuRoom() {
     const int16_t leftWall = 1 * CELL_SIZE;
     const int16_t rightWall = 4 * CELL_SIZE;
@@ -61,8 +84,9 @@ void DrawMenuRoom() {
 
     for(uint8_t n = 0; n < DISPLAY_WIDTH; n++) {
         Renderer::wBuffer[n] = 0;
-        Renderer::horizonBuffer[n] =
-            HORIZON + (((DISPLAY_WIDTH / 2 - n) * Renderer::camera.tilt) >> 8) + Renderer::camera.bob;
+        Renderer::horizonBuffer[n] = HORIZON +
+                                     (((DISPLAY_WIDTH / 2 - n) * Renderer::camera.tilt) >> 8) +
+                                     Renderer::camera.bob;
     }
 
     Renderer::camera.cellX = Renderer::camera.x / CELL_SIZE;
@@ -108,7 +132,10 @@ void DrawMenuRoom() {
     constexpr int8_t MAX_CELL = 4;
 
 #define MENU_SOLID(cx, cy) (((cx) == 0) || ((cx) == MAX_CELL) || ((cy) == 0) || ((cy) == MAX_CELL))
-#define MENU_SOLID_SAFE(cx, cy) (((cx) < MIN_CELL || (cx) > MAX_CELL || (cy) < MIN_CELL || (cy) > MAX_CELL) ? true : MENU_SOLID((cx), (cy)))
+#define MENU_SOLID_SAFE(cx, cy)                                                   \
+    (((cx) < MIN_CELL || (cx) > MAX_CELL || (cy) < MIN_CELL || (cy) > MAX_CELL) ? \
+         true :                                                                   \
+         MENU_SOLID((cx), (cy)))
 
     int8_t xd, yd;
     int8_t x1, y1, x2, y2;
@@ -260,6 +287,73 @@ void DrawMenuRoom() {
 }
 }
 
+void Menu::Draw() {
+    DrawMenuRoom();
+
+    if (splashActive) {
+        Font::PrintString(PSTR("FLIPPER GAME"), 2, 42, COLOUR_WHITE);
+        Font::PrintString(PSTR("JHHOWARD & APFXTECH"), 4, 26, COLOUR_WHITE);
+        Font::PrintString(PSTR("PRESENT"), 6, 52, COLOUR_WHITE);
+        return;
+    }
+
+    Font::PrintString(PSTR("CATACOMBS OF THE DAMNED"), 2, 18, COLOUR_WHITE);
+
+    for (uint8_t row = 0; row < VISIBLE_ROWS; ++row) {
+        uint8_t idx = (uint8_t)(topIndex + row);
+        if (idx >= MENU_ITEMS_COUNT) break;
+        PrintItem(idx, (uint8_t)(MENU_FIRST_ROW + row));
+    }
+
+    static uint8_t bubble = 0;
+    static uint16_t lastFrameSeen = 0xFFFF;
+
+    const uint16_t frame = (uint16_t)Game::globalTickFrame;
+
+    if (frame != lastFrameSeen) {
+        if ((frame & SHIFT_MASK) == 0) {
+            bubble = (uint8_t)(bubble + 2);
+            if (bubble >= kObjectsCount) bubble = (uint8_t)(bubble - kObjectsCount);
+            if (bubble >= kObjectsCount) bubble = (uint8_t)(bubble - kObjectsCount);
+        }
+        lastFrameSeen = frame;
+    }
+
+    const uint8_t num1 = bubble;
+    uint8_t num2 = (uint8_t)(bubble + 1);
+    if (num2 >= kObjectsCount) num2 = 0;
+
+    const ObjDesc& sprite1 = kObjects[num1];
+    const ObjDesc& sprite2 = kObjects[num2];
+
+    const int animOffset = ((Game::globalTickFrame & 8) == 0) ? 32 : 0;
+    const int off1 = sprite1.animated ? animOffset : 0;
+    const int off2 = sprite2.animated ? animOffset : 0;
+
+    const uint16_t* torchSprite =
+        (Game::globalTickFrame & 4) ? torchSpriteData1 : torchSpriteData2;
+
+    if (sprite1.invert) {
+        Renderer::DrawScaled(sprite1.sprite + off1, 66, 29, 9, 255, true, COLOUR_BLACK);
+    } else {
+        Renderer::DrawScaled(sprite1.sprite + off1, 66, 29, 9, 255);
+    }
+
+    if (sprite2.invert) {
+        Renderer::DrawScaled(sprite2.sprite + off2, 96, 30, 9, 255, true, COLOUR_BLACK);
+    } else {
+        Renderer::DrawScaled(sprite2.sprite + off2, 96, 30, 9, 255);
+    }
+
+    Renderer::DrawScaled(torchSprite, 0, 10, 9, 255);
+    Renderer::DrawScaled(torchSprite, DISPLAY_WIDTH - 18, 10, 9, 255);
+
+    Font::PrintInt(vars_[sprite1.varsIndex], MENU_FIRST_ROW + 1, 86, COLOUR_WHITE);
+    Font::PrintInt(vars_[sprite2.varsIndex], MENU_FIRST_ROW + 1, 116, COLOUR_WHITE);
+
+    Font::PrintString(PSTR(">"), (uint8_t)(MENU_FIRST_ROW + cursorPos), CURSOR_X, COLOUR_WHITE);
+}
+
 void Menu::PrintItem(uint8_t idx, uint8_t row) {
     switch(idx) {
     case 0:
@@ -290,78 +384,34 @@ void Menu::Init() {
     splashActive = true;
 }
 
-void Menu::Draw() {
-    DrawMenuRoom();
-
-    if(splashActive) {
-        Font::PrintString(PSTR("FLIPPER GAME"), 2, 42, COLOUR_WHITE);
-        Font::PrintString(PSTR("JHHOWARD & APFXTECH"), 4, 26, COLOUR_WHITE);
-        Font::PrintString(PSTR("PRESENT"), 6, 52, COLOUR_WHITE);
-        return;
-    }
-
-    Font::PrintString(PSTR("CATACOMBS OF THE DAMNED"), 2, 18, COLOUR_WHITE);
-
-    for(uint8_t row = 0; row < VISIBLE_ROWS; ++row) {
-        uint8_t idx = (uint8_t)(topIndex + row);
-        if(idx >= MENU_ITEMS_COUNT) break;
-        PrintItem(idx, (uint8_t)(MENU_FIRST_ROW + row));
-    }
-
-    const int animOffset = ((Game::globalTickFrame & 8) == 0) ? 32 : 0;
-    const uint8_t enemyShow = (uint8_t)((Game::globalTickFrame / 64) & 3);
-    const uint16_t* enemySprite = nullptr;
-    const uint16_t* lootSprite = nullptr;
-    bool flip = false;
-    uint8_t color = COLOUR_WHITE;
-    uint8_t num1 = 0;
-    uint8_t num2 = 0;
-
-    switch(enemyShow) {
-    case 0:
-        lootSprite = chestSpriteData;
-        enemySprite = skeletonSpriteData;
-        num1 = vars_[0];
-        num2 = vars_[4];
-        break;
-    case 1:
-        lootSprite = scrollSpriteData;
-        enemySprite = mageSpriteData;
-        num1 = vars_[2];
-        num2 = vars_[5];
-        break;
-    case 2:
-        lootSprite = coinsSpriteData;
-        enemySprite = batSpriteData;
-        num1 = vars_[3];
-        num2 = vars_[6];
-        flip = true;
-        color = COLOUR_BLACK;
-        break;
-    case 3:
-        lootSprite = crownSpriteData;
-        enemySprite = spiderSpriteData;
-        num1 = vars_[1];
-        num2 = vars_[7];
-        break;
-    }
-
-    const uint16_t* torchSprite = (Game::globalTickFrame & 4) ? torchSpriteData1 :
-                                                                torchSpriteData2;
-    Renderer::DrawScaled(lootSprite, 66, 29, 9, 255);
-    Renderer::DrawScaled(enemySprite + animOffset, 96, 30, 9, 255, flip, color);
-    Renderer::DrawScaled(torchSprite, 0, 10, 9, 255);
-    Renderer::DrawScaled(torchSprite, DISPLAY_WIDTH - 18, 10, 9, 255);
-    Font::PrintInt(num1, MENU_FIRST_ROW + 1, 86, COLOUR_WHITE);
-    Font::PrintInt(num2, MENU_FIRST_ROW + 1, 116, COLOUR_WHITE);
-
-    Font::PrintString(PSTR(">"), (uint8_t)(MENU_FIRST_ROW + cursorPos), CURSOR_X, COLOUR_WHITE);
-}
-
 void Menu::DrawEnteringLevel() {
     DrawMenuRoom();
     Font::PrintString(PSTR("Entering floor"), 3, 30, COLOUR_BLACK);
     Font::PrintInt(Game::floor, 3, 90, COLOUR_BLACK);
+}
+
+static int CountCharsInt(int v) {
+    int n = 1;
+    if(v < 0) {
+        n++;
+        v = -v;
+    } // минус тоже символ
+    while(v >= 10) {
+        v /= 10;
+        n++;
+    }
+    return n;
+}
+
+void PrintScoreCentered(int finalScore) {
+    const int screenW = 128;
+
+    int n = CountCharsInt(finalScore);
+    int textW = 4 * n - 1;
+
+    int x = (screenW - textW) / 2;
+
+    Font::PrintInt(finalScore, 2, x, COLOUR_BLACK);
 }
 
 void Menu::DrawGameOver() {
@@ -388,10 +438,8 @@ void Menu::DrawGameOver() {
     finalScore += Game::stats.enemyKills[(int)EnemyType::Bat] * batKillBonus;
     finalScore += Game::stats.enemyKills[(int)EnemyType::Spider] * spiderKillBonus;
 
-    Platform::FillScreen(COLOUR_WHITE);
-    Font::PrintString(PSTR("GAME OVER"), 0, 12, COLOUR_BLACK);
-    Font::PrintString(PSTR("FINAL SCORE:"), 0, 56, COLOUR_BLACK);
-    Font::PrintInt(finalScore, 0, 106, COLOUR_BLACK);
+    DrawMenuRoom();
+    PrintScoreCentered(finalScore);
 
     switch(Game::stats.killedBy) {
     case EnemyType::Exit:
@@ -423,29 +471,29 @@ void Menu::DrawGameOver() {
 
     int offset = (Game::globalTickFrame & 8) == 0 ? 32 : 0;
 
-    Renderer::DrawScaled(chestSpriteData, 0, firstRow, 9, 255, false, COLOUR_WHITE);
-    Font::PrintInt(Game::stats.chestsOpened, 4, 18, COLOUR_BLACK);
+    Renderer::DrawScaled(chestSpriteData, 6, firstRow, 9, 255, false, COLOUR_WHITE);
+    Font::PrintInt(Game::stats.chestsOpened, 4, 24, COLOUR_BLACK);
 
-    Renderer::DrawScaled(crownSpriteData, 0, secondRow, 9, 255, false, COLOUR_WHITE);
-    Font::PrintInt(Game::stats.crownsCollected, 6, 18, COLOUR_BLACK);
+    Renderer::DrawScaled(crownSpriteData, 6, secondRow, 9, 255, false, COLOUR_WHITE);
+    Font::PrintInt(Game::stats.crownsCollected, 6, 24, COLOUR_BLACK);
 
-    Renderer::DrawScaled(scrollSpriteData, 30, firstRow, 9, 255, false, COLOUR_WHITE);
-    Font::PrintInt(Game::stats.scrollsCollected, 4, 48, COLOUR_BLACK);
+    Renderer::DrawScaled(scrollSpriteData, 36, firstRow, 9, 255, false, COLOUR_WHITE);
+    Font::PrintInt(Game::stats.scrollsCollected, 4, 54, COLOUR_BLACK);
 
-    Renderer::DrawScaled(coinsSpriteData, 30, secondRow, 9, 255, false, COLOUR_WHITE);
-    Font::PrintInt(Game::stats.coinsCollected, 6, 48, COLOUR_BLACK);
+    Renderer::DrawScaled(coinsSpriteData, 36, secondRow, 9, 255, false, COLOUR_WHITE);
+    Font::PrintInt(Game::stats.coinsCollected, 6, 54, COLOUR_BLACK);
 
-    Renderer::DrawScaled(skeletonSpriteData + offset, 66, firstRow, 9, 255, false, COLOUR_WHITE);
-    Font::PrintInt(Game::stats.enemyKills[(int)EnemyType::Skeleton], 4, 84, COLOUR_BLACK);
+    Renderer::DrawScaled(skeletonSpriteData + offset, 72, firstRow, 9, 255, false, COLOUR_WHITE);
+    Font::PrintInt(Game::stats.enemyKills[(int)EnemyType::Skeleton], 4, 90, COLOUR_BLACK);
 
-    Renderer::DrawScaled(mageSpriteData + offset, 66, secondRow, 9, 255, false, COLOUR_WHITE);
-    Font::PrintInt(Game::stats.enemyKills[(int)EnemyType::Mage], 6, 84, COLOUR_BLACK);
+    Renderer::DrawScaled(mageSpriteData + offset, 72, secondRow, 9, 255, false, COLOUR_WHITE);
+    Font::PrintInt(Game::stats.enemyKills[(int)EnemyType::Mage], 6, 90, COLOUR_BLACK);
 
-    Renderer::DrawScaled(batSpriteData + offset, 96, firstRow, 9, 255, true, COLOUR_BLACK);
-    Font::PrintInt(Game::stats.enemyKills[(int)EnemyType::Bat], 4, 114, COLOUR_BLACK);
+    Renderer::DrawScaled(batSpriteData + offset, 102, firstRow, 9, 255, true, COLOUR_BLACK);
+    Font::PrintInt(Game::stats.enemyKills[(int)EnemyType::Bat], 4, 120, COLOUR_BLACK);
 
-    Renderer::DrawScaled(spiderSpriteData + offset, 96, secondRow, 9, 255, false, COLOUR_WHITE);
-    Font::PrintInt(Game::stats.enemyKills[(int)EnemyType::Spider], 6, 114, COLOUR_BLACK);
+    Renderer::DrawScaled(spiderSpriteData + offset, 102, secondRow, 9, 255, false, COLOUR_WHITE);
+    Font::PrintInt(Game::stats.enemyKills[(int)EnemyType::Spider], 6, 120, COLOUR_BLACK);
 
     vars_[0] = Game::stats.chestsOpened;
     vars_[1] = Game::stats.crownsCollected;
@@ -455,6 +503,12 @@ void Menu::DrawGameOver() {
     vars_[5] = Game::stats.enemyKills[(int)EnemyType::Mage];
     vars_[6] = Game::stats.enemyKills[(int)EnemyType::Bat];
     vars_[7] = Game::stats.enemyKills[(int)EnemyType::Spider];
+
+    if(Game::floor > 0) {
+        vars_[8] = Game::floor - 1;
+    } else {
+        vars_[8] = 0;
+    }
 
     SetScore(finalScore);
 }
@@ -635,7 +689,7 @@ void Menu::ReadScore() {
     high_ = (uint16_t)EEPROM.read(addr) | ((uint16_t)EEPROM.read(addr + 1) << 8);
     addr += 2;
 
-    for(int i = 0; i < 8; i++) {
+    for(int i = 0; i < 9; i++) {
         vars_[i] = EEPROM.read(addr++);
     }
 }
@@ -668,7 +722,7 @@ void Menu::SetScore(uint16_t score) {
     EEPROM.update(addr++, (uint8_t)(newHigh & 0xFF));
     EEPROM.update(addr++, (uint8_t)(newHigh >> 8));
 
-    for(int i = 0; i < 8; i++) {
+    for(int i = 0; i < 9; i++) {
         EEPROM.update(addr++, vars_[i]);
     }
 
