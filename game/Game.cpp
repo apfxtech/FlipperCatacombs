@@ -74,8 +74,6 @@ void Game::StartLevel() {
     EnemyManager::SpawnEnemies();
 
     player.NextLevel();
-
-    Platform::ExpectLoadDelay();
     SwitchState(State::InGame);
 }
 
@@ -87,9 +85,9 @@ void Game::Draw() {
     case State::EnteringLevel:
         menu.DrawEnteringLevel();
         break;
-    case State::TransitionToLevel:
-        menu.TransitionToLevel();
-        break;
+    // case State::TransitionToLevel:
+    //     menu.TransitionToLevel();
+    //     break;
     case State::InGame: {
         Renderer::camera.x = player.x;
         Renderer::camera.y = player.y;
@@ -144,8 +142,8 @@ void Game::Tick() {
     case State::GameOver:
         menu.TickGameOver();
         return;
-    case State::TransitionToLevel:
-        return;
+    // case State::TransitionToLevel:
+    //     return;
     default:
         return;
     }

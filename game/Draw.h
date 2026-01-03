@@ -105,6 +105,7 @@ public:
         bool shadeEdge);
     static void DrawBackground();
     static uint8_t numQueuedDrawables;
+    static bool isFrustrumClipped(int16_t x, int16_t y);
 
 private:
     static QueuedDrawable queuedDrawables[MAX_QUEUED_DRAWABLES];
@@ -124,7 +125,6 @@ private:
     static void DrawFloorLineInner(int16_t x1, int16_t y1, int16_t x2, int16_t y2);
     static void DrawFloorLines();
 
-    static bool isFrustrumClipped(int16_t x, int16_t y);
     static void TransformToViewSpace(int16_t x, int16_t y, int16_t& outX, int16_t& outY);
     static void TransformToScreenSpace(int16_t viewX, int16_t viewZ, int16_t& outX, int16_t& outW);
 

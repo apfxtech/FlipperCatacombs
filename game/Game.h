@@ -30,7 +30,7 @@ public:
         InGame,
         GameOver,
         FadeOut,
-        TransitionToLevel
+        // TransitionToLevel
     };
 
     static void Init();

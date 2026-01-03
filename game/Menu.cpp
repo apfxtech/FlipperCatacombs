@@ -45,32 +45,58 @@ void DrawMenuRoom() {
     Renderer::camera.x = (int16_t)((leftWall + rightWall) / 2);
     Renderer::camera.y = (int16_t)((topWall + bottomWall) / 2);
 
-    static uint8_t ang = 0;
-    static uint8_t acc = 0;
-    acc = (uint8_t)(acc + 85);
-    if(acc < 85) ang = (uint8_t)(ang + 1);
-    Renderer::camera.angle = ang;
+    static uint16_t angleFP = 0;
+    constexpr uint16_t SPEED_FP = 64;
+    angleFP = (uint16_t)(angleFP + SPEED_FP);
+    Renderer::camera.angle = (uint8_t)(angleFP >> 8);
 
     Renderer::camera.tilt = 0;
     Renderer::camera.bob = 0;
+
+    Renderer::globalRenderFrame++;
+    Renderer::DrawBackground();
 
     Renderer::numBufferSlicesFilled = 0;
     Renderer::numQueuedDrawables = 0;
 
     for(uint8_t n = 0; n < DISPLAY_WIDTH; n++) {
         Renderer::wBuffer[n] = 0;
-        Renderer::horizonBuffer[n] = HORIZON;
+        Renderer::horizonBuffer[n] =
+            HORIZON + (((DISPLAY_WIDTH / 2 - n) * Renderer::camera.tilt) >> 8) + Renderer::camera.bob;
     }
 
     Renderer::camera.cellX = Renderer::camera.x / CELL_SIZE;
     Renderer::camera.cellY = Renderer::camera.y / CELL_SIZE;
 
-    Renderer::camera.rotCos = FixedCos(-Renderer::camera.angle);
-    Renderer::camera.rotSin = FixedSin(-Renderer::camera.angle);
-    Renderer::camera.clipCos = FixedCos(-Renderer::camera.angle + CLIP_ANGLE);
-    Renderer::camera.clipSin = FixedSin(-Renderer::camera.angle + CLIP_ANGLE);
+    {
+        uint16_t rotPhase = (uint16_t)(0 - angleFP);
+        uint8_t a0 = (uint8_t)(rotPhase >> 8);
+        uint8_t f = (uint8_t)(rotPhase & 0xff);
+        uint8_t a1 = (uint8_t)(a0 + 1);
 
-    Renderer::DrawBackground();
+        int16_t c0 = FixedCos(a0);
+        int16_t c1 = FixedCos(a1);
+        int16_t s0 = FixedSin(a0);
+        int16_t s1 = FixedSin(a1);
+
+        Renderer::camera.rotCos = (int16_t)(c0 + (((int32_t)(c1 - c0) * f) >> 8));
+        Renderer::camera.rotSin = (int16_t)(s0 + (((int32_t)(s1 - s0) * f) >> 8));
+    }
+
+    {
+        uint16_t clipPhase = (uint16_t)(((uint16_t)CLIP_ANGLE << 8) - angleFP);
+        uint8_t a0 = (uint8_t)(clipPhase >> 8);
+        uint8_t f = (uint8_t)(clipPhase & 0xff);
+        uint8_t a1 = (uint8_t)(a0 + 1);
+
+        int16_t c0 = FixedCos(a0);
+        int16_t c1 = FixedCos(a1);
+        int16_t s0 = FixedSin(a0);
+        int16_t s1 = FixedSin(a1);
+
+        Renderer::camera.clipCos = (int16_t)(c0 + (((int32_t)(c1 - c0) * f) >> 8));
+        Renderer::camera.clipSin = (int16_t)(s0 + (((int32_t)(s1 - s0) * f) >> 8));
+    }
 
 #if WITH_IMAGE_TEXTURES
     const uint16_t* texture = wallTextureData;
@@ -78,28 +104,160 @@ void DrawMenuRoom() {
     const uint8_t* texture = vectorTexture0;
 #endif
 
-    const int16_t x0 = leftWall;
-    const int16_t y0 = topWall;
-    const int16_t x1 = rightWall;
-    const int16_t y1 = bottomWall;
+    constexpr int8_t MIN_CELL = 0;
+    constexpr int8_t MAX_CELL = 4;
 
-    const bool edgeLeft = true;
-    const bool edgeRight = true;
-    const bool shadeEdge = false;
+#define MENU_SOLID(cx, cy) (((cx) == 0) || ((cx) == MAX_CELL) || ((cy) == 0) || ((cy) == MAX_CELL))
+#define MENU_SOLID_SAFE(cx, cy) (((cx) < MIN_CELL || (cx) > MAX_CELL || (cy) < MIN_CELL || (cy) > MAX_CELL) ? true : MENU_SOLID((cx), (cy)))
 
+    int8_t xd, yd;
+    int8_t x1, y1, x2, y2;
+
+    if(Renderer::camera.rotCos > 0) {
+        x1 = MIN_CELL;
+        x2 = MAX_CELL + 1;
+        xd = 1;
+    } else {
+        x2 = MIN_CELL - 1;
+        x1 = MAX_CELL;
+        xd = -1;
+    }
+
+    if(Renderer::camera.rotSin < 0) {
+        y1 = MIN_CELL;
+        y2 = MAX_CELL + 1;
+        yd = 1;
+    } else {
+        y2 = MIN_CELL - 1;
+        y1 = MAX_CELL;
+        yd = -1;
+    }
+
+    auto drawMenuCell = [&](int8_t x, int8_t y) {
+        if(!MENU_SOLID(x, y)) return;
+        if(Renderer::isFrustrumClipped(x, y)) return;
+        if(Renderer::numBufferSlicesFilled >= DISPLAY_WIDTH) return;
+
+        const bool blockedLeft = MENU_SOLID_SAFE(x - 1, y);
+        const bool blockedRight = MENU_SOLID_SAFE(x + 1, y);
+        const bool blockedUp = MENU_SOLID_SAFE(x, y - 1);
+        const bool blockedDown = MENU_SOLID_SAFE(x, y + 1);
+
+        int16_t wx1 = (int16_t)(x * CELL_SIZE);
+        int16_t wy1 = (int16_t)(y * CELL_SIZE);
+        int16_t wx2 = (int16_t)(wx1 + CELL_SIZE);
+        int16_t wy2 = (int16_t)(wy1 + CELL_SIZE);
+
+        if(!blockedLeft && Renderer::camera.x < wx1) {
 #if WITH_TEXTURES
-    Renderer::DrawWall(texture, x0, y0, x1, y0, edgeLeft, edgeRight, shadeEdge);
-    Renderer::DrawWall(texture, x1, y0, x1, y1, edgeLeft, edgeRight, shadeEdge);
-    Renderer::DrawWall(texture, x1, y1, x0, y1, edgeLeft, edgeRight, shadeEdge);
-    Renderer::DrawWall(texture, x0, y1, x0, y0, edgeLeft, edgeRight, shadeEdge);
+            Renderer::DrawWall(
+                texture,
+                wx1,
+                wy1,
+                wx1,
+                wy2,
+                !blockedUp && Renderer::camera.y > wy1,
+                !blockedDown && Renderer::camera.y < wy2,
+                false);
 #else
-    Renderer::DrawWall(x0, y0, x1, y0, edgeLeft, edgeRight, shadeEdge);
-    Renderer::DrawWall(x1, y0, x1, y1, edgeLeft, edgeRight, shadeEdge);
-    Renderer::DrawWall(x1, y1, x0, y1, edgeLeft, edgeRight, shadeEdge);
-    Renderer::DrawWall(x0, y1, x0, y0, edgeLeft, edgeRight, shadeEdge);
+            Renderer::DrawWall(
+                wx1,
+                wy1,
+                wx1,
+                wy2,
+                !blockedUp && Renderer::camera.y > wy1,
+                !blockedDown && Renderer::camera.y < wy2,
+                false);
 #endif
-}
+        }
 
+        if(!blockedDown && Renderer::camera.y > wy2) {
+#if WITH_TEXTURES
+            Renderer::DrawWall(
+                texture,
+                wx1,
+                wy2,
+                wx2,
+                wy2,
+                !blockedLeft && Renderer::camera.x > wx1,
+                !blockedRight && Renderer::camera.x < wx2,
+                false);
+#else
+            Renderer::DrawWall(
+                wx1,
+                wy2,
+                wx2,
+                wy2,
+                !blockedLeft && Renderer::camera.x > wx1,
+                !blockedRight && Renderer::camera.x < wx2,
+                false);
+#endif
+        }
+
+        if(!blockedRight && Renderer::camera.x > wx2) {
+#if WITH_TEXTURES
+            Renderer::DrawWall(
+                texture,
+                wx2,
+                wy2,
+                wx2,
+                wy1,
+                !blockedDown && Renderer::camera.y < wy2,
+                !blockedUp && Renderer::camera.y > wy1,
+                false);
+#else
+            Renderer::DrawWall(
+                wx2,
+                wy2,
+                wx2,
+                wy1,
+                !blockedDown && Renderer::camera.y < wy2,
+                !blockedUp && Renderer::camera.y > wy1,
+                false);
+#endif
+        }
+
+        if(!blockedUp && Renderer::camera.y < wy1) {
+#if WITH_TEXTURES
+            Renderer::DrawWall(
+                texture,
+                wx2,
+                wy1,
+                wx1,
+                wy1,
+                !blockedRight && Renderer::camera.x < wx2,
+                !blockedLeft && Renderer::camera.x > wx1,
+                false);
+#else
+            Renderer::DrawWall(
+                wx2,
+                wy1,
+                wx1,
+                wy1,
+                !blockedRight && Renderer::camera.x < wx2,
+                !blockedLeft && Renderer::camera.x > wx1,
+                false);
+#endif
+        }
+    };
+
+    if(ABS(Renderer::camera.rotCos) < ABS(Renderer::camera.rotSin)) {
+        for(int8_t y = y1; y != y2; y += yd) {
+            for(int8_t x = x1; x != x2; x += xd) {
+                drawMenuCell(x, y);
+            }
+        }
+    } else {
+        for(int8_t x = x1; x != x2; x += xd) {
+            for(int8_t y = y1; y != y2; y += yd) {
+                drawMenuCell(x, y);
+            }
+        }
+    }
+
+#undef MENU_SOLID_SAFE
+#undef MENU_SOLID
+}
 }
 
 void Menu::PrintItem(uint8_t idx, uint8_t row) {
@@ -388,10 +546,10 @@ void Menu::Tick() {
 }
 
 void Menu::TickEnteringLevel() {
-    constexpr uint8_t showTime = 30;
+    constexpr uint8_t showTime = 45;
     if(timer < showTime) timer++;
     if(timer == showTime && Platform::GetInput() == 0) {
-        Game::SwitchState(Game::State::TransitionToLevel);
+        Game::StartLevel();
     }
 }
 
@@ -444,7 +602,7 @@ void Menu::ResetTimer() {
     timer = 0;
 }
 
-static constexpr uint8_t TOTAL_TIME = 26;
+static constexpr uint8_t TOTAL_TIME = 40;
 static constexpr uint8_t TOTAL_FRAMES = 8;
 
 void Menu::RunTransition(Menu* menu, uint8_t& t, TransitionNextFn next) {
@@ -464,10 +622,10 @@ void Menu::FadeOut() {
     RunTransition(this, t, +[]() { Game::SwitchState(Game::State::GameOver); });
 }
 
-void Menu::TransitionToLevel() {
-    static uint8_t t = 0;
-    RunTransition(this, t, +[]() { Game::StartLevel(); });
-}
+// void Menu::TransitionToLevel() {
+//     static uint8_t t = 0;
+//     RunTransition(this, t, +[]() { Game::StartLevel(); });
+// }
 
 void Menu::ReadScore() {
     uint8_t addr = EEPROM_BASE_ADDR;
