@@ -80,8 +80,6 @@ static inline void set_flag(volatile uint8_t& state, uint8_t flag, bool down) {
 extern "C" int32_t arduboy3d_app(void* p) {
     UNUSED(p);
 
-    int32_t ret = -1;
-
     Gui* gui = NULL;
     Canvas* canvas = NULL;
     FuriPubSub* input_events = NULL;
@@ -107,7 +105,7 @@ extern "C" int32_t arduboy3d_app(void* p) {
         EEPROM.begin();
         furi_delay_ms(50);
         Platform::SetAudioEnabled(EEPROM.read(2) != 0);
-        Game::menu.ReadScore();
+        Game::menu.ReadSave();
 
         gui = (Gui*)furi_record_open(RECORD_GUI);
         if(!gui) break;
@@ -138,7 +136,6 @@ extern "C" int32_t arduboy3d_app(void* p) {
         bool back_hold_fired = false;
         uint32_t back_press_tick = 0;
 
-        ret = 0;
         while(!st->exit_requested) {
             uint32_t now = furi_get_tick();
 
@@ -220,6 +217,8 @@ extern "C" int32_t arduboy3d_app(void* p) {
         }
     } while(false);
 
+    Game::menu.WriteSave();
+
     __atomic_store_n(&s_input_queue, (FuriMessageQueue*)NULL, __ATOMIC_RELEASE);
 
     if(input_sub && input_events) {
@@ -245,25 +244,24 @@ extern "C" int32_t arduboy3d_app(void* p) {
 
     wait_inflight_zero(&s_fb_cb_inflight);
 
-    if(gui && canvas) {
-        gui_direct_draw_release(gui);
-        canvas = NULL;
+    if(g_state->input_events) {
+        furi_record_close(RECORD_INPUT_EVENTS);
+        g_state->input_events = NULL;
     }
-    if(gui) {
+
+    if(g_state->gui) {
+        gui_direct_draw_release(g_state->gui);
         furi_record_close(RECORD_GUI);
-        gui = NULL;
+        g_state->gui = NULL;
+        g_state->canvas = NULL;
+    }
+
+    if(g_state->fb_mutex) {
+        furi_mutex_free(g_state->fb_mutex);
+        g_state->fb_mutex = NULL;
     }
 
     Platform::SetAudioEnabled(false);
 
-    if(st) {
-        if(st->fb_mutex) {
-            furi_mutex_free(st->fb_mutex);
-            st->fb_mutex = NULL;
-        }
-        free(st);
-    }
-    g_state = NULL;
-
-    return ret;
+    return 0;
 }

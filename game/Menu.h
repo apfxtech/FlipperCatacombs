@@ -84,7 +84,9 @@ public:
     void Init();
     void Draw();
     void Tick();
-    void ReadScore();
+
+    void ReadSave();
+    void WriteSave();
 
     void TickEnteringLevel();
     void DrawEnteringLevel();
@@ -104,13 +106,14 @@ private:
     void SetScore(uint16_t score);
     void PrintItem(uint8_t idx, uint8_t row);
 
-    uint8_t selection = 0;
-    uint8_t topIndex = 0;
-    uint8_t cursorPos = 0;
+    uint8_t m_selection = 0;
+    uint8_t m_topIndex = 0;
+    uint8_t m_cursorPos = 0;
 
-    uint16_t score_ = 0;
-    uint16_t high_ = 0;
-    uint8_t vars_[9] = {0};
+    uint16_t m_score = 0;
+    uint16_t m_high = 0;
+    uint16_t m_storedHigh = 0;
+    uint8_t m_save[9] = {0};
 
     union {
         uint16_t timer;

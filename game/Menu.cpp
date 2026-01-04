@@ -300,7 +300,7 @@ void Menu::Draw() {
     Font::PrintString(PSTR("CATACOMBS OF THE DAMNED"), 2, 18, COLOUR_WHITE);
 
     for (uint8_t row = 0; row < VISIBLE_ROWS; ++row) {
-        uint8_t idx = (uint8_t)(topIndex + row);
+        uint8_t idx = (uint8_t)(m_topIndex + row);
         if (idx >= MENU_ITEMS_COUNT) break;
         PrintItem(idx, (uint8_t)(MENU_FIRST_ROW + row));
     }
@@ -348,10 +348,10 @@ void Menu::Draw() {
     Renderer::DrawScaled(torchSprite, 0, 10, 9, 255);
     Renderer::DrawScaled(torchSprite, DISPLAY_WIDTH - 18, 10, 9, 255);
 
-    Font::PrintInt(vars_[sprite1.varsIndex], MENU_FIRST_ROW + 1, 86, COLOUR_WHITE);
-    Font::PrintInt(vars_[sprite2.varsIndex], MENU_FIRST_ROW + 1, 116, COLOUR_WHITE);
+    Font::PrintInt(m_save[sprite1.varsIndex], MENU_FIRST_ROW + 1, 86, COLOUR_WHITE);
+    Font::PrintInt(m_save[sprite2.varsIndex], MENU_FIRST_ROW + 1, 116, COLOUR_WHITE);
 
-    Font::PrintString(PSTR(">"), (uint8_t)(MENU_FIRST_ROW + cursorPos), CURSOR_X, COLOUR_WHITE);
+    Font::PrintString(PSTR(">"), (uint8_t)(MENU_FIRST_ROW + m_cursorPos), CURSOR_X, COLOUR_WHITE);
 }
 
 void Menu::PrintItem(uint8_t idx, uint8_t row) {
@@ -366,19 +366,19 @@ void Menu::PrintItem(uint8_t idx, uint8_t row) {
         break;
     case 2:
         Font::PrintString(PSTR("Score:"), row, TEXT_X, COLOUR_WHITE);
-        Font::PrintInt(score_, row, TEXT_X + 28, COLOUR_WHITE);
+        Font::PrintInt(m_score, row, TEXT_X + 28, COLOUR_WHITE);
         break;
     case 3:
         Font::PrintString(PSTR("High:"), row, TEXT_X, COLOUR_WHITE);
-        Font::PrintInt(high_, row, TEXT_X + 28, COLOUR_WHITE);
+        Font::PrintInt(m_high, row, TEXT_X + 28, COLOUR_WHITE);
         break;
     }
 }
 
 void Menu::Init() {
-    selection = 0;
-    topIndex = 0;
-    cursorPos = 0;
+    m_selection = 0;
+    m_topIndex = 0;
+    m_cursorPos = 0;
 
     splashTimer = 0;
     splashActive = true;
@@ -495,20 +495,19 @@ void Menu::DrawGameOver() {
     Renderer::DrawScaled(spiderSpriteData + offset, 102, secondRow, 9, 255, false, COLOUR_WHITE);
     Font::PrintInt(Game::stats.enemyKills[(int)EnemyType::Spider], 6, 120, COLOUR_BLACK);
 
-    vars_[0] = Game::stats.chestsOpened;
-    vars_[1] = Game::stats.crownsCollected;
-    vars_[2] = Game::stats.scrollsCollected;
-    vars_[3] = Game::stats.coinsCollected;
-    vars_[4] = Game::stats.enemyKills[(int)EnemyType::Skeleton];
-    vars_[5] = Game::stats.enemyKills[(int)EnemyType::Mage];
-    vars_[6] = Game::stats.enemyKills[(int)EnemyType::Bat];
-    vars_[7] = Game::stats.enemyKills[(int)EnemyType::Spider];
+    m_save[0] = Game::stats.chestsOpened;
+    m_save[1] = Game::stats.crownsCollected;
+    m_save[2] = Game::stats.scrollsCollected;
+    m_save[3] = Game::stats.coinsCollected;
+    m_save[4] = Game::stats.enemyKills[(int)EnemyType::Skeleton];
+    m_save[5] = Game::stats.enemyKills[(int)EnemyType::Mage];
+    m_save[6] = Game::stats.enemyKills[(int)EnemyType::Bat];
+    m_save[7] = Game::stats.enemyKills[(int)EnemyType::Spider];
+    m_save[8] = 0;
 
     if(Game::floor > 0) {
-        vars_[8] = Game::floor - 1;
-    } else {
-        vars_[8] = 0;
-    }
+        m_save[8] = Game::floor - 1;
+    } 
 
     SetScore(finalScore);
 }
@@ -527,34 +526,34 @@ void Menu::Tick() {
     auto syncWindow = [&]() {
         uint8_t maxTop = MaxTop();
 
-        if(selection < topIndex) topIndex = selection;
+        if(m_selection < m_topIndex) m_topIndex = m_selection;
 
-        uint8_t end = (uint8_t)(topIndex + (VISIBLE_ROWS - 1));
-        if(selection > end) {
-            int t = (int)selection - (VISIBLE_ROWS - 1);
+        uint8_t end = (uint8_t)(m_topIndex + (VISIBLE_ROWS - 1));
+        if(m_selection > end) {
+            int t = (int)m_selection - (VISIBLE_ROWS - 1);
             if(t < 0) t = 0;
             if(t > maxTop) t = maxTop;
-            topIndex = (uint8_t)t;
+            m_topIndex = (uint8_t)t;
         }
 
-        cursorPos = (uint8_t)(selection - topIndex);
-        if(cursorPos >= VISIBLE_ROWS) cursorPos = (VISIBLE_ROWS - 1);
+        m_cursorPos = (uint8_t)(m_selection - m_topIndex);
+        if(m_cursorPos >= VISIBLE_ROWS) m_cursorPos = (VISIBLE_ROWS - 1);
     };
 
     if((input & INPUT_DOWN) && !(lastInput & INPUT_DOWN)) {
-        uint8_t next = Wrap((int)selection + 1, MENU_ITEMS_COUNT);
+        uint8_t next = Wrap((int)m_selection + 1, MENU_ITEMS_COUNT);
 
-        if(cursorPos < (VISIBLE_ROWS - 1)) {
-            selection = next;
-            cursorPos++;
+        if(m_cursorPos < (VISIBLE_ROWS - 1)) {
+            m_selection = next;
+            m_cursorPos++;
         } else {
-            selection = next;
+            m_selection = next;
 
-            if(topIndex < MaxTop()) {
-                topIndex++;
+            if(m_topIndex < MaxTop()) {
+                m_topIndex++;
             } else {
-                topIndex = 0;
-                cursorPos = 0;
+                m_topIndex = 0;
+                m_cursorPos = 0;
             }
         }
 
@@ -562,19 +561,19 @@ void Menu::Tick() {
     }
 
     if((input & INPUT_UP) && !(lastInput & INPUT_UP)) {
-        uint8_t prev = Wrap((int)selection - 1, MENU_ITEMS_COUNT);
+        uint8_t prev = Wrap((int)m_selection - 1, MENU_ITEMS_COUNT);
 
-        if(cursorPos > 0) {
-            selection = prev;
-            cursorPos--;
+        if(m_cursorPos > 0) {
+            m_selection = prev;
+            m_cursorPos--;
         } else {
-            selection = prev;
+            m_selection = prev;
 
-            if(topIndex > 0) {
-                topIndex--;
+            if(m_topIndex > 0) {
+                m_topIndex--;
             } else {
-                topIndex = MaxTop();
-                cursorPos = (VISIBLE_ROWS - 1);
+                m_topIndex = MaxTop();
+                m_cursorPos = (VISIBLE_ROWS - 1);
             }
         }
 
@@ -582,7 +581,7 @@ void Menu::Tick() {
     }
 
     if((input & (INPUT_A | INPUT_B)) && !(lastInput & (INPUT_A | INPUT_B))) {
-        switch(selection) {
+        switch(m_selection) {
         case 0:
             Game::StartGame();
             break;
@@ -676,55 +675,32 @@ void Menu::FadeOut() {
     RunTransition(this, t, +[]() { Game::SwitchState(Game::State::GameOver); });
 }
 
-// void Menu::TransitionToLevel() {
-//     static uint8_t t = 0;
-//     RunTransition(this, t, +[]() { Game::StartLevel(); });
-// }
-
-void Menu::ReadScore() {
+void Menu::ReadSave() {
     uint8_t addr = EEPROM_BASE_ADDR;
-
-    score_ = (uint16_t)EEPROM.read(addr) | ((uint16_t)EEPROM.read(addr + 1) << 8);
-    addr += 2;
-    high_ = (uint16_t)EEPROM.read(addr) | ((uint16_t)EEPROM.read(addr + 1) << 8);
-    addr += 2;
-
+    m_score = (uint16_t)EEPROM.read(addr) | ((uint16_t)EEPROM.read(addr + 1) << 8); addr += 2;
+    m_high = (uint16_t)EEPROM.read(addr) | ((uint16_t)EEPROM.read(addr + 1) << 8);  addr += 2;
+    m_storedHigh = m_high;
+    
     for(int i = 0; i < 9; i++) {
-        vars_[i] = EEPROM.read(addr++);
+        m_save[i] = EEPROM.read(addr++);
     }
 }
 
 void Menu::SetScore(uint16_t score) {
     if(score == 0) return;
+    m_high = (score > m_storedHigh) ? score : m_storedHigh;
+    m_score = score;
+}
 
-    static unsigned long lastSaveTime = 0;
-    unsigned long now = furi_get_tick();
-
-    if(lastSaveTime != 0 && (now - lastSaveTime) < 2000) {
-        score_ = score;
-        return;
-    }
-
-    lastSaveTime = now;
-
-    uint16_t storedHigh = (uint16_t)EEPROM.read(EEPROM_BASE_ADDR + 2) |
-                          ((uint16_t)EEPROM.read(EEPROM_BASE_ADDR + 3) << 8);
-
-    uint16_t newHigh = (score > storedHigh) ? score : storedHigh;
-
-    score_ = score;
-    high_ = newHigh;
-
+void Menu::WriteSave() {
     uint8_t addr = EEPROM_BASE_ADDR;
-
-    EEPROM.update(addr++, (uint8_t)(score & 0xFF));
-    EEPROM.update(addr++, (uint8_t)(score >> 8));
-    EEPROM.update(addr++, (uint8_t)(newHigh & 0xFF));
-    EEPROM.update(addr++, (uint8_t)(newHigh >> 8));
+    EEPROM.update(addr++, (uint8_t)(m_score & 0xFF));
+    EEPROM.update(addr++, (uint8_t)(m_score >> 8));
+    EEPROM.update(addr++, (uint8_t)(m_high & 0xFF));
+    EEPROM.update(addr++, (uint8_t)(m_high >> 8));
 
     for(int i = 0; i < 9; i++) {
-        EEPROM.update(addr++, vars_[i]);
+        EEPROM.update(addr++, m_save[i]);
     }
-
     EEPROM.commit();
 }
