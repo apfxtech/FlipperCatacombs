@@ -1,65 +1,82 @@
-# Catacombs of the damned! 
+# Catacombs of the Damned!
 
-![s3](package/banner.png)
+![banner](package/banner.png)
 
-**Проклятые катакомбы!** — это шутер от первого лица / данжен-кроулер для [миниатюрной игровой системы Arduboy](https://www.arduboy.com), в котором вы исследуете 10 этажей случайно генерируемого подземелья, уничтожаете монстров волшебными огненными шарами и собираете как можно больше добычи.
+**Catacombs of the Damned!** is a first-person shooter / dungeon crawler for the [Arduboy miniature game system](https://www.arduboy.com).
+Explore **10 floors** of a procedurally generated dungeon, destroy monsters with magical fireballs, and collect as much loot as you can.
 
-Игра частично вдохновлена серией игр [Catacomb 3D](https://www.gog.com/game/catacombs_pack).
+The game is partially inspired by the classic **Catacomb 3D** series.
 
-### Особенности:
+## Features
 
-![d1](package/demo.gif)
+![demo](package/demo.gif)
 
-- Плавный 3D-геймплей!
-- Звуковые эффекты!
-- Случайно генерируемые уровни!
-- Четыре различных типа монстров!
-- Множество трофеев для сбора!
+* Smooth real-time 3D gameplay
+* Sound effects
+* Procedurally generated levels
+* Four different enemy types
+* Plenty of treasures to collect
 
-### О проекте
+## About the Project
 
-Данный репозиторий является **форком** оригинального проекта [Arduboy3D](https://github.com/jhhoward/Arduboy3D). Основная цель этого форка — портирование игры с консоли Arduboy на **Flipper Zero**.
+This repository is a **fork** of the original [Arduboy3D](https://github.com/jhhoward/Arduboy3D) project by James Howard.
 
-| | |
-|---|---|
-| ![s1](package/screenshots/screen2.png) | ![s2](package/screenshots/screen3.png) |
-| ![s4](package/screenshots/screen4.png) | ![s5](package/screenshots/screen5.png) |
-| ![s6](package/screenshots/screen6.png) | ![s7](package/screenshots/screen1.png) |
+The main goal of this fork is to **port the game from Arduboy to the Flipper Zero** handheld device.
 
-### Инструкция по сборке
+## Screenshots
 
-Для компиляции игры вам понадобится исходный код прошивки Flipper Zero и установленный набор инструментов для сборки.
+|                                             |                                             |
+| ------------------------------------------- | ------------------------------------------- |
+| ![screen2](package/screenshots/screen2.png) | ![screen3](package/screenshots/screen3.png) |
+| ![screen4](package/screenshots/screen4.png) | ![screen5](package/screenshots/screen5.png) |
+| ![screen6](package/screenshots/screen6.png) | ![screen1](package/screenshots/screen1.png) |
 
-#### 1. Клонирование исходного кода
+## Build Instructions
 
-Убедитесь, что у вас достаточно свободного места на диске, и выполните клонирование репозитория прошивки со всеми подмодулями:
+To compile the game, you will need the **Flipper Zero firmware source code** and the required build toolchain.
+
+### 1. Clone the Firmware Source Code
+
+Make sure you have enough free disk space, then clone the firmware repository with all submodules:
 
 ```bash
 git clone --recursive https://github.com/flipperdevices/flipperzero-firmware.git
 ```
 
-#### 2. Подготовка окружения
+### 2. Prepare the Build Environment
 
-Соберите базовую прошивку, используя Flipper Build Tool (fbt), чтобы убедиться в корректности окружения:
+Build the base firmware using the **Flipper Build Tool (fbt)** to verify that your environment is set up correctly:
 
 ```bash
 ./fbt
 ```
 
-#### 3. Установка и сборка игры
+### 3. Install and Build the Game
 
-1. Скопируйте исходный код игры (папку с проектом) в директорию пользовательских приложений прошивки:
-`./flipperzero-firmware/applications_user/`
-2. Соберите приложение (FAP-файл) с помощью команды:
+1. Copy the game source code directory into the firmware’s user applications folder:
 
-```bash
-./fbt fap_apfx_catacombs && mv build/f7-firmware-D/.extapps/apfx_catacombs.fap ./applications_user/Arduboy3D/package
+```
+./flipperzero-firmware/applications_user/
 ```
 
-После успешного завершения сборки готовый файл приложения можно будет найти в папке `build/`, откуда его следует перенести на SD-карту вашего Flipper Zero в папку `apps/`.
+2. Build the application (`.fap` file) using the following command:
 
-## Обсуждение в сообществе (arduboy)
-История разработки и комментарии доступны в [треде на форуме Arduboy](https://community.arduboy.com/t/another-fps-style-3d-demo/6565) (на английском языке).
+```bash
+./fbt fap_catacombs && mv build/f7-firmware-D/.extapps/catacombs.fap ./
+```
 
-## Оригинал
-James Howard [Arduboy3D](https://github.com/jhhoward/Arduboy3D)
+After a successful build, the resulting application file can be found in the `build/` directory.
+Copy `catacombs.fap` to your **Flipper Zero SD card** under:
+
+```
+apps/
+```
+
+## Community Discussion (Arduboy)
+
+The development history and original discussion can be found in the Arduboy community [forum thread](https://community.arduboy.com/t/another-fps-style-3d-demo/6565) (English).
+
+## Original Project
+
+**James Howard**
+[Arduboy3D](https://github.com/jhhoward/Arduboy3D)
