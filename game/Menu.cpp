@@ -13,7 +13,7 @@
 #include <stdio.h>
 #include <string.h>
 
-constexpr int EEPROM_BASE_ADDR = 20;
+constexpr int EEPROM_BASE_ADDR = 0x03F0;
 
 struct ObjDesc {
     const uint16_t* sprite;
@@ -607,7 +607,7 @@ void Menu::TickEnteringLevel() {
 }
 
 void Menu::TickGameOver() {
-    constexpr uint8_t minShowTime = 60;
+    constexpr uint8_t minShowTime = 30;
 
     if(timer < minShowTime) timer++;
 
@@ -676,7 +676,7 @@ void Menu::FadeOut() {
 }
 
 void Menu::ReadSave() {
-    uint8_t addr = EEPROM_BASE_ADDR;
+    uint16_t addr = EEPROM_BASE_ADDR;
     m_score = (uint16_t)EEPROM.read(addr) | ((uint16_t)EEPROM.read(addr + 1) << 8); addr += 2;
     m_high = (uint16_t)EEPROM.read(addr) | ((uint16_t)EEPROM.read(addr + 1) << 8);  addr += 2;
     m_storedHigh = m_high;
@@ -693,7 +693,7 @@ void Menu::SetScore(uint16_t score) {
 }
 
 void Menu::WriteSave() {
-    uint8_t addr = EEPROM_BASE_ADDR;
+    uint16_t addr = EEPROM_BASE_ADDR;
     EEPROM.update(addr++, (uint8_t)(m_score & 0xFF));
     EEPROM.update(addr++, (uint8_t)(m_score >> 8));
     EEPROM.update(addr++, (uint8_t)(m_high & 0xFF));

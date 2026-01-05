@@ -12,12 +12,10 @@
 #define BUFFER_SIZE    (DISPLAY_WIDTH * DISPLAY_HEIGHT / 8)
 
 typedef struct {
-    uint8_t back_buffer[BUFFER_SIZE];
-    uint8_t front_buffer[BUFFER_SIZE];
+    uint8_t buffer[BUFFER_SIZE];
 
     Gui* gui;
     Canvas* canvas;
-
     FuriMutex* fb_mutex;
 
     volatile uint8_t input_state;

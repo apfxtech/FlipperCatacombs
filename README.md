@@ -22,9 +22,9 @@
 
 | | |
 |---|---|
-| ![s3](package/screenshots/screen3.png) | ![s4](package/screenshots/screen4.png) |
-| ![s7](package/screenshots/screen7.png) | ![s6](package/screenshots/screen6.png) |
-| ![s1](package/screenshots/screen1.png) | ![s8](package/screenshots/screen8.png) |
+| ![s1](package/screenshots/screen2.png) | ![s2](package/screenshots/screen3.png) |
+| ![s4](package/screenshots/screen4.png) | ![s5](package/screenshots/screen5.png) |
+| ![s6](package/screenshots/screen6.png) | ![s7](package/screenshots/screen1.png) |
 
 ### Инструкция по сборке
 

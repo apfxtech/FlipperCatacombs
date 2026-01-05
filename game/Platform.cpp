@@ -144,7 +144,7 @@ static inline void set_pixel(int16_t x, int16_t y, bool color) {
     if(!g_state) return;
     if(x < 0 || y < 0 || x >= DISPLAY_WIDTH || y >= DISPLAY_HEIGHT) return;
 
-    uint8_t* buf = g_state->back_buffer;
+    uint8_t* buf = g_state->buffer;
     uint16_t idx = (uint16_t)(x + (y >> 3) * DISPLAY_WIDTH);
     uint8_t mask = (uint8_t)(1u << (y & 7));
 
@@ -160,11 +160,11 @@ void Platform::PutPixel(uint8_t x, uint8_t y, uint8_t color) {
 
 void Platform::FillScreen(uint8_t color) {
     if(!g_state) return;
-    memset(g_state->back_buffer, color ? 0xFF : 0x00, BUFFER_SIZE);
+    memset(g_state->buffer, color ? 0xFF : 0x00, BUFFER_SIZE);
 }
 
 uint8_t* Platform::GetScreenBuffer() {
-    return g_state ? g_state->back_buffer : NULL;
+    return g_state ? g_state->buffer : NULL;
 }
 
 void Platform::DrawVLine(uint8_t x, int8_t y0, int8_t y1, uint8_t pattern) {
