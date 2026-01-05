@@ -45,7 +45,7 @@ static void framebuffer_commit_callback(
         return;
     }
 
-    const uint8_t* src = state->buffer;
+    const uint8_t* src = state->front_buffer;
     for(size_t i = 0; i < BUFFER_SIZE; i++) {
         data[i] = (uint8_t)(src[i] ^ 0xFF);
     }
@@ -87,16 +87,17 @@ extern "C" int32_t arduboy3d_app(void* p) {
     FuriPubSubSubscription* input_sub = NULL;
     FuriMessageQueue* q_local = NULL;
 
-    g_state = (FlipperState*)malloc(sizeof(FlipperState));
-    if(!g_state) return -1;
-    memset(g_state, 0, sizeof(FlipperState));
+    FlipperState* st = (FlipperState*)malloc(sizeof(FlipperState));
+    if(!st) return -1;
+    memset(st, 0, sizeof(FlipperState));
+    g_state = st;
 
     do {
-        g_state->fb_mutex = furi_mutex_alloc(FuriMutexTypeNormal);
-        if(!g_state->fb_mutex) break;
+        st->fb_mutex = furi_mutex_alloc(FuriMutexTypeNormal);
+        if(!st->fb_mutex) break;
 
-        memset(g_state->buffer, 0x00, BUFFER_SIZE);
-        memset(g_state->buffer, 0x00, BUFFER_SIZE);
+        memset(st->back_buffer, 0x00, BUFFER_SIZE);
+        memset(st->front_buffer, 0x00, BUFFER_SIZE);
 
         q_local = furi_message_queue_alloc(32, sizeof(InputEvent));
         if(!q_local) break;
@@ -109,21 +110,21 @@ extern "C" int32_t arduboy3d_app(void* p) {
 
         gui = (Gui*)furi_record_open(RECORD_GUI);
         if(!gui) break;
-        g_state->gui = gui;
+        st->gui = gui;
 
-        gui_add_framebuffer_callback(gui, framebuffer_commit_callback, g_state);
+        gui_add_framebuffer_callback(gui, framebuffer_commit_callback, st);
 
         canvas = gui_direct_draw_acquire(gui);
         if(!canvas) break;
-        g_state->canvas = canvas;
+        st->canvas = canvas;
 
         input_events = (FuriPubSub*)furi_record_open(RECORD_INPUT_EVENTS);
         if(!input_events) break;
-        g_state->input_events = input_events;
+        st->input_events = input_events;
 
-        input_sub = furi_pubsub_subscribe(input_events, input_events_callback, g_state);
+        input_sub = furi_pubsub_subscribe(input_events, input_events_callback, st);
         if(!input_sub) break;
-        g_state->input_sub = input_sub;
+        st->input_sub = input_sub;
 
         const uint32_t tick_hz = furi_kernel_get_tick_frequency();
         uint32_t period_ticks = (tick_hz + (TARGET_FRAMERATE / 2)) / TARGET_FRAMERATE;
@@ -136,8 +137,10 @@ extern "C" int32_t arduboy3d_app(void* p) {
         bool back_hold_fired = false;
         uint32_t back_press_tick = 0;
 
-        while(!g_state->exit_requested) {
+        while(!st->exit_requested) {
             uint32_t now = furi_get_tick();
+
+            // frame pacing
             if((int32_t)(now - next_tick) < 0) {
                 uint32_t dt_ticks = next_tick - now;
                 uint32_t dt_ms = (dt_ticks * 1000u) / tick_hz;
@@ -148,9 +151,9 @@ extern "C" int32_t arduboy3d_app(void* p) {
             if((int32_t)(now - next_tick) > (int32_t)(period_ticks * 2)) {
                 next_tick = now;
             }
-
             next_tick += period_ticks;
 
+            // drain input queue (main thread)
             InputEvent ev;
             while(q_local && (furi_message_queue_get(q_local, &ev, 0) == FuriStatusOk)) {
                 const bool down = (ev.type == InputTypePress);
@@ -159,33 +162,33 @@ extern "C" int32_t arduboy3d_app(void* p) {
                 switch(ev.key) {
                 case InputKeyUp:
                     if(down)
-                        set_flag(g_state->input_state, INPUT_UP, true);
+                        set_flag(st->input_state, INPUT_UP, true);
                     else if(up)
-                        set_flag(g_state->input_state, INPUT_UP, false);
+                        set_flag(st->input_state, INPUT_UP, false);
                     break;
                 case InputKeyDown:
                     if(down)
-                        set_flag(g_state->input_state, INPUT_DOWN, true);
+                        set_flag(st->input_state, INPUT_DOWN, true);
                     else if(up)
-                        set_flag(g_state->input_state, INPUT_DOWN, false);
+                        set_flag(st->input_state, INPUT_DOWN, false);
                     break;
                 case InputKeyLeft:
                     if(down)
-                        set_flag(g_state->input_state, INPUT_LEFT, true);
+                        set_flag(st->input_state, INPUT_LEFT, true);
                     else if(up)
-                        set_flag(g_state->input_state, INPUT_LEFT, false);
+                        set_flag(st->input_state, INPUT_LEFT, false);
                     break;
                 case InputKeyRight:
                     if(down)
-                        set_flag(g_state->input_state, INPUT_RIGHT, true);
+                        set_flag(st->input_state, INPUT_RIGHT, true);
                     else if(up)
-                        set_flag(g_state->input_state, INPUT_RIGHT, false);
+                        set_flag(st->input_state, INPUT_RIGHT, false);
                     break;
                 case InputKeyOk:
                     if(down)
-                        set_flag(g_state->input_state, INPUT_B, true);
+                        set_flag(st->input_state, INPUT_B, true);
                     else if(up)
-                        set_flag(g_state->input_state, INPUT_B, false);
+                        set_flag(st->input_state, INPUT_B, false);
                     break;
                 case InputKeyBack:
                     if(down) {
@@ -207,16 +210,21 @@ extern "C" int32_t arduboy3d_app(void* p) {
                 if((uint32_t)(now - back_press_tick) >= hold_ticks) {
                     back_hold_fired = true;
                     if(Game::InMenu())
-                        g_state->exit_requested = true;
+                        st->exit_requested = true;
                     else
                         Game::GoToMenu();
                 }
             }
 
-            if(g_state->exit_requested) break;
+            if(st->exit_requested) break;
 
             Game::Tick();
             Game::Draw();
+
+            // swap for framebuffer callback
+            furi_mutex_acquire(st->fb_mutex, FuriWaitForever);
+            memcpy(st->front_buffer, st->back_buffer, BUFFER_SIZE);
+            furi_mutex_release(st->fb_mutex);
 
             canvas_commit(canvas);
         }
@@ -226,26 +234,35 @@ extern "C" int32_t arduboy3d_app(void* p) {
 
     __atomic_store_n(&s_input_queue, (FuriMessageQueue*)NULL, __ATOMIC_RELEASE);
 
-    Platform::SetAudioEnabled(false);
+    if(input_sub && input_events) {
+        furi_pubsub_unsubscribe(input_events, input_sub);
+        input_sub = NULL;
+    }
+
     wait_inflight_zero(&s_input_cb_inflight);
-    wait_inflight_zero(&s_fb_cb_inflight);
+
+    if(input_events) {
+        furi_record_close(RECORD_INPUT_EVENTS);
+        input_events = NULL;
+    }
 
     if(q_local) {
         furi_message_queue_free(q_local);
         q_local = NULL;
     }
 
+    if(gui) {
+        gui_remove_framebuffer_callback(gui, framebuffer_commit_callback, st);
+    }
+
+    wait_inflight_zero(&s_fb_cb_inflight);
+
     if(g_state->input_events) {
-        if(input_sub) {
-            furi_pubsub_unsubscribe(input_events, input_sub);
-            input_sub = NULL;
-        }
         furi_record_close(RECORD_INPUT_EVENTS);
         g_state->input_events = NULL;
     }
 
     if(g_state->gui) {
-        gui_remove_framebuffer_callback(gui, framebuffer_commit_callback, g_state);
         gui_direct_draw_release(g_state->gui);
         furi_record_close(RECORD_GUI);
         g_state->gui = NULL;
@@ -256,6 +273,8 @@ extern "C" int32_t arduboy3d_app(void* p) {
         furi_mutex_free(g_state->fb_mutex);
         g_state->fb_mutex = NULL;
     }
+
+    Platform::SetAudioEnabled(false);
 
     return 0;
 }
