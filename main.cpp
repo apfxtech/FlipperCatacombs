@@ -16,7 +16,6 @@
 
 FlipperState* g_state = NULL;
 
-static FuriMessageQueue* s_input_queue = NULL;
 static volatile uint32_t s_input_cb_inflight = 0;
 static volatile uint32_t s_fb_cb_inflight = 0;
 
@@ -60,26 +59,47 @@ static void framebuffer_commit_callback(
 }
 
 static void input_events_callback(const void* value, void* ctx) {
-    UNUSED(ctx);
+    if(!value || !ctx) return;
 
     __atomic_fetch_add(&s_input_cb_inflight, 1, __ATOMIC_RELAXED);
 
-    if(value) {
-        FuriMessageQueue* q = __atomic_load_n(&s_input_queue, __ATOMIC_ACQUIRE);
-        if(q) {
-            InputEvent ev = *(const InputEvent*)value;
-            (void)furi_message_queue_put(q, &ev, 0);
+    FlipperState* state = (FlipperState*)ctx;
+    const InputEvent* event = (const InputEvent*)value;
+
+    uint8_t bit = 0;
+    switch(event->key) {
+    case InputKeyUp:
+        bit = INPUT_UP;
+        break;
+    case InputKeyDown:
+        bit = INPUT_DOWN;
+        break;
+    case InputKeyLeft:
+        bit = INPUT_LEFT;
+        break;
+    case InputKeyRight:
+        bit = INPUT_RIGHT;
+        break;
+    case InputKeyOk:
+        bit = INPUT_B;
+        break;
+    case InputKeyBack:
+        bit = INPUT_A;
+        break;
+    default:
+        break;
+    }
+
+    if(state && bit) {
+        if((event->type == InputTypePress) || (event->type == InputTypeRepeat)) {
+            (void)__atomic_fetch_or((uint8_t*)&state->input_state, bit, __ATOMIC_RELAXED);
+        } else if(event->type == InputTypeRelease) {
+            (void)__atomic_fetch_and(
+                (uint8_t*)&state->input_state, (uint8_t)~bit, __ATOMIC_RELAXED);
         }
     }
 
     __atomic_fetch_sub(&s_input_cb_inflight, 1, __ATOMIC_RELAXED);
-}
-
-static inline void set_flag(volatile uint8_t& state, uint8_t flag, bool down) {
-    if(down)
-        state |= flag;
-    else
-        state &= (uint8_t)~flag;
 }
 
 extern "C" int32_t arduboy3d_app(void* p) {
@@ -89,7 +109,6 @@ extern "C" int32_t arduboy3d_app(void* p) {
     Canvas* canvas = NULL;
     FuriPubSub* input_events = NULL;
     FuriPubSubSubscription* input_sub = NULL;
-    FuriMessageQueue* q_local = NULL;
 
     FlipperState* st = (FlipperState*)malloc(sizeof(FlipperState));
     if(!st) return -1;
@@ -102,10 +121,6 @@ extern "C" int32_t arduboy3d_app(void* p) {
 
         memset(st->back_buffer, 0x00, BUFFER_SIZE);
         memset(st->front_buffer, 0x00, BUFFER_SIZE);
-
-        q_local = furi_message_queue_alloc(32, sizeof(InputEvent));
-        if(!q_local) break;
-        __atomic_store_n(&s_input_queue, q_local, __ATOMIC_RELEASE);
 
         EEPROM.begin();
         furi_delay_ms(50);
@@ -137,8 +152,8 @@ extern "C" int32_t arduboy3d_app(void* p) {
 
         uint32_t next_tick = furi_get_tick();
 
-        bool back_pressed = false;
-        bool back_hold_fired = false;
+        bool back_was_pressed = false;
+        bool back_hold_cancelled = false;
         uint32_t back_press_tick = 0;
 
         while(!st->exit_requested) {
@@ -157,66 +172,37 @@ extern "C" int32_t arduboy3d_app(void* p) {
             }
             next_tick += period_ticks;
 
-            // drain input queue (main thread)
-            InputEvent ev;
-            while(q_local && (furi_message_queue_get(q_local, &ev, 0) == FuriStatusOk)) {
-                const bool down = (ev.type == InputTypePress);
-                const bool up = (ev.type == InputTypeRelease);
-
-                switch(ev.key) {
-                case InputKeyUp:
-                    if(down)
-                        set_flag(st->input_state, INPUT_UP, true);
-                    else if(up)
-                        set_flag(st->input_state, INPUT_UP, false);
-                    break;
-                case InputKeyDown:
-                    if(down)
-                        set_flag(st->input_state, INPUT_DOWN, true);
-                    else if(up)
-                        set_flag(st->input_state, INPUT_DOWN, false);
-                    break;
-                case InputKeyLeft:
-                    if(down)
-                        set_flag(st->input_state, INPUT_LEFT, true);
-                    else if(up)
-                        set_flag(st->input_state, INPUT_LEFT, false);
-                    break;
-                case InputKeyRight:
-                    if(down)
-                        set_flag(st->input_state, INPUT_RIGHT, true);
-                    else if(up)
-                        set_flag(st->input_state, INPUT_RIGHT, false);
-                    break;
-                case InputKeyOk:
-                    if(down)
-                        set_flag(st->input_state, INPUT_B, true);
-                    else if(up)
-                        set_flag(st->input_state, INPUT_B, false);
-                    break;
-                case InputKeyBack:
-                    if(down) {
-                        back_pressed = true;
-                        back_hold_fired = false;
-                        back_press_tick = now;
-                    } else if(up) {
-                        back_pressed = false;
-                        back_hold_fired = false;
-                    }
-                    break;
-                default:
-                    break;
-                }
-            }
+            const uint8_t input =
+                __atomic_load_n((uint8_t*)&st->input_state, __ATOMIC_RELAXED);
+            const bool back_pressed = (input & INPUT_A) != 0;
 
             // BACK hold logic
-            if(back_pressed && !back_hold_fired) {
-                if((uint32_t)(now - back_press_tick) >= hold_ticks) {
-                    back_hold_fired = true;
+            if(!back_pressed) {
+                back_was_pressed = false;
+                back_hold_cancelled = false;
+            } else {
+                if(!back_was_pressed) {
+                    back_was_pressed = true;
+                    back_press_tick = now;
+                    back_hold_cancelled = false;
+                }
+
+                const bool strafe_held = !Game::InMenu() && ((input & (INPUT_LEFT | INPUT_RIGHT)) != 0);
+                if(strafe_held) {
+                    // Avoid accidental exit while using Back as strafe modifier.
+                    back_hold_cancelled = true;
+                }
+
+                if(!back_hold_cancelled && ((uint32_t)(now - back_press_tick) >= hold_ticks)) {
                     if(Game::InMenu())
                         st->exit_requested = true;
                     else
                         Game::GoToMenu();
+
+                    (void)__atomic_fetch_and(
+                        (uint8_t*)&st->input_state, (uint8_t)~INPUT_A, __ATOMIC_RELAXED);
+                    back_hold_cancelled = true;
+                    back_was_pressed = false;
                 }
             }
 
@@ -236,12 +222,11 @@ extern "C" int32_t arduboy3d_app(void* p) {
 
     Game::menu.WriteSave();
 
-    __atomic_store_n(&s_input_queue, (FuriMessageQueue*)NULL, __ATOMIC_RELEASE);
-
     if(input_sub && input_events) {
         furi_pubsub_unsubscribe(input_events, input_sub);
         input_sub = NULL;
     }
+    st->input_sub = NULL;
 
     wait_inflight_zero(&s_input_cb_inflight);
 
@@ -249,11 +234,7 @@ extern "C" int32_t arduboy3d_app(void* p) {
         furi_record_close(RECORD_INPUT_EVENTS);
         input_events = NULL;
     }
-
-    if(q_local) {
-        furi_message_queue_free(q_local);
-        q_local = NULL;
-    }
+    st->input_events = NULL;
 
     if(gui) {
         gui_remove_framebuffer_callback(gui, framebuffer_commit_callback, st);
@@ -261,24 +242,26 @@ extern "C" int32_t arduboy3d_app(void* p) {
 
     wait_inflight_zero(&s_fb_cb_inflight);
 
-    if(g_state->input_events) {
-        furi_record_close(RECORD_INPUT_EVENTS);
-        g_state->input_events = NULL;
-    }
-
-    if(g_state->gui) {
-        gui_direct_draw_release(g_state->gui);
+    if(gui) {
+        if(canvas) {
+            gui_direct_draw_release(gui);
+            canvas = NULL;
+        }
         furi_record_close(RECORD_GUI);
-        g_state->gui = NULL;
-        g_state->canvas = NULL;
+        gui = NULL;
     }
+    st->gui = NULL;
+    st->canvas = NULL;
 
-    if(g_state->fb_mutex) {
-        furi_mutex_free(g_state->fb_mutex);
-        g_state->fb_mutex = NULL;
+    if(st->fb_mutex) {
+        furi_mutex_free(st->fb_mutex);
+        st->fb_mutex = NULL;
     }
 
     Platform::SetAudioEnabled(false);
+
+    free(st);
+    g_state = NULL;
 
     return 0;
 }
