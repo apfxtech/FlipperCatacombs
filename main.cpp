@@ -26,6 +26,10 @@ static inline void wait_inflight_zero(volatile uint32_t* counter) {
     }
 }
 
+inline bool audio_enable(){
+    return !furi_hal_rtc_is_flag_set(FuriHalRtcFlagStealthMode);
+}
+
 static void framebuffer_commit_callback(
     uint8_t* data,
     size_t size,
@@ -105,7 +109,7 @@ extern "C" int32_t arduboy3d_app(void* p) {
 
         EEPROM.begin();
         furi_delay_ms(50);
-        Platform::SetAudioEnabled(EEPROM.read(2) != 0);
+        Platform::SetAudioEnabled(audio_enable());
         Game::menu.ReadSave();
 
         gui = (Gui*)furi_record_open(RECORD_GUI);
