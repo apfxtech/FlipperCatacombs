@@ -18,6 +18,7 @@ FlipperState* g_state = NULL;
 
 static volatile uint32_t s_input_cb_inflight = 0;
 static volatile uint32_t s_fb_cb_inflight = 0;
+static volatile uint8_t s_back_pressed = 0;
 
 static inline void wait_inflight_zero(volatile uint32_t* counter) {
     while(__atomic_load_n(counter, __ATOMIC_ACQUIRE) != 0) {
@@ -84,7 +85,11 @@ static void input_events_callback(const void* value, void* ctx) {
         bit = INPUT_B;
         break;
     case InputKeyBack:
-        bit = INPUT_A;
+        if((event->type == InputTypePress) || (event->type == InputTypeRepeat)) {
+            (void)__atomic_store_n(&s_back_pressed, 1, __ATOMIC_RELAXED);
+        } else if(event->type == InputTypeRelease) {
+            (void)__atomic_store_n(&s_back_pressed, 0, __ATOMIC_RELAXED);
+        }
         break;
     default:
         break;
@@ -153,7 +158,7 @@ extern "C" int32_t arduboy3d_app(void* p) {
         uint32_t next_tick = furi_get_tick();
 
         bool back_was_pressed = false;
-        bool back_hold_cancelled = false;
+        bool back_hold_fired = false;
         uint32_t back_press_tick = 0;
 
         while(!st->exit_requested) {
@@ -172,37 +177,25 @@ extern "C" int32_t arduboy3d_app(void* p) {
             }
             next_tick += period_ticks;
 
-            const uint8_t input =
-                __atomic_load_n((uint8_t*)&st->input_state, __ATOMIC_RELAXED);
-            const bool back_pressed = (input & INPUT_A) != 0;
+            const bool back_pressed = (__atomic_load_n(&s_back_pressed, __ATOMIC_RELAXED) != 0);
 
             // BACK hold logic
             if(!back_pressed) {
                 back_was_pressed = false;
-                back_hold_cancelled = false;
+                back_hold_fired = false;
             } else {
                 if(!back_was_pressed) {
                     back_was_pressed = true;
                     back_press_tick = now;
-                    back_hold_cancelled = false;
+                    back_hold_fired = false;
                 }
 
-                const bool strafe_held = !Game::InMenu() && ((input & (INPUT_LEFT | INPUT_RIGHT)) != 0);
-                if(strafe_held) {
-                    // Avoid accidental exit while using Back as strafe modifier.
-                    back_hold_cancelled = true;
-                }
-
-                if(!back_hold_cancelled && ((uint32_t)(now - back_press_tick) >= hold_ticks)) {
+                if(!back_hold_fired && ((uint32_t)(now - back_press_tick) >= hold_ticks)) {
+                    back_hold_fired = true;
                     if(Game::InMenu())
                         st->exit_requested = true;
                     else
                         Game::GoToMenu();
-
-                    (void)__atomic_fetch_and(
-                        (uint8_t*)&st->input_state, (uint8_t)~INPUT_A, __ATOMIC_RELAXED);
-                    back_hold_cancelled = true;
-                    back_was_pressed = false;
                 }
             }
 
@@ -229,6 +222,7 @@ extern "C" int32_t arduboy3d_app(void* p) {
     st->input_sub = NULL;
 
     wait_inflight_zero(&s_input_cb_inflight);
+    (void)__atomic_store_n(&s_back_pressed, 0, __ATOMIC_RELAXED);
 
     if(input_events) {
         furi_record_close(RECORD_INPUT_EVENTS);
