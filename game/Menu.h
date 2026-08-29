@@ -81,8 +81,8 @@ static const uint8_t transitionSet[] = {
 
 class Menu {
 public:
-    // Startup sequence: title screen, then the "presents" caption, then the menu
-    enum class SplashPhase : uint8_t { Title, Present, Done };
+    // Startup sequence: title screen with the credit line, then the menu
+    enum class SplashPhase : uint8_t { Title, Done };
 
     SplashPhase GetSplashPhase() const {
         return m_splashPhase;

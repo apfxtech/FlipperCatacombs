@@ -44,8 +44,11 @@ constexpr uint8_t MENU_FIRST_ROW = 4;
 constexpr uint8_t TEXT_X = 18;
 constexpr uint8_t CURSOR_X = 10;
 
-constexpr uint8_t TITLE_TIME_TICKS = 90;   // ~3 s at 30 fps
-constexpr uint8_t PRESENT_TIME_TICKS = 30; // ~1 s at 30 fps
+constexpr uint8_t TITLE_TIME_TICKS = 90; // ~3 s at 30 fps
+
+// "by JHHOWARD & APFXTECH" is 22 glyphs of 4 px, minus the trailing spacing
+constexpr uint8_t CREDIT_ROW = 7;
+constexpr uint8_t CREDIT_X = (DISPLAY_WIDTH - (4 * 22 - 1)) / 2;
 
 static uint8_t Wrap(int v, int n) {
     v %= n;
@@ -303,13 +306,6 @@ void Menu::Draw() {
         return;
     }
 
-    if (m_splashPhase == SplashPhase::Present) {
-        Font::PrintString("FLIPPER GAME", 2, 42, COLOUR_WHITE);
-        Font::PrintString("JHHOWARD & APFXTECH", 4, 26, COLOUR_WHITE);
-        Font::PrintString("PRESENT", 6, 52, COLOUR_WHITE);
-        return;
-    }
-
     Font::PrintString("CATACOMBS OF THE DAMNED", 2, 18, COLOUR_WHITE);
 
     for (uint8_t row = 0; row < VISIBLE_ROWS; ++row) {
@@ -365,6 +361,8 @@ void Menu::Draw() {
     Font::PrintInt(m_save[sprite2.varsIndex], MENU_FIRST_ROW + 1, 116, COLOUR_WHITE);
 
     Font::PrintString(">", (uint8_t)(MENU_FIRST_ROW + m_cursorPos), CURSOR_X, COLOUR_WHITE);
+
+    Font::PrintString("by JHHOWARD & APFXTECH", CREDIT_ROW, CREDIT_X, COLOUR_WHITE);
 }
 
 void Menu::PrintItem(uint8_t idx, uint8_t row) {
@@ -530,13 +528,9 @@ void Menu::Tick() {
     uint8_t input = Platform::GetInput();
 
     if(m_splashPhase != SplashPhase::Done) {
-        const uint8_t showTime =
-            (m_splashPhase == SplashPhase::Title) ? TITLE_TIME_TICKS : PRESENT_TIME_TICKS;
-
-        if(++m_splashTimer >= showTime) {
+        if(++m_splashTimer >= TITLE_TIME_TICKS) {
             m_splashTimer = 0;
-            m_splashPhase = (m_splashPhase == SplashPhase::Title) ? SplashPhase::Present :
-                                                                   SplashPhase::Done;
+            m_splashPhase = SplashPhase::Done;
         }
 
         lastInput = input;
