@@ -30,10 +30,6 @@ The main goal of this fork is to **port the game from Arduboy to the Flipper Zer
 
 ## Community Discussion 
 
-### Flipper
-
-The discussion can be found in the my [Discord](https://discord.com/channels/1525896334849212487/1543348559515095041) server (English).
-
 ### Arduboy
 
 The development history and original discussion can be found in the Arduboy community [forum thread](https://community.arduboy.com/t/another-fps-style-3d-demo/6565) (English).
