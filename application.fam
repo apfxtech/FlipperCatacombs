@@ -3,7 +3,7 @@ App(
     name="Catacombs Of The Damned",
     apptype=FlipperAppType.EXTERNAL,
     entry_point="arduboy3d_app",
-    requires=["gui"],
+    requires=["gui", "notification"],
     sources=["game/*.cpp"],
     stack_size=8 * 1024,
     fap_category="Games",

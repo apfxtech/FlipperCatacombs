@@ -160,6 +160,8 @@ extern "C" int32_t arduboy3d_app(void* p) {
     app->input_queue = furi_message_queue_alloc(16, sizeof(InputEvent));
 
     Platform::SetAudioEnabled(!furi_hal_rtc_is_flag_set(FuriHalRtcFlagStealthMode));
+    // Deliberately not persisted: every launch starts with the screen held awake
+    Platform::SetBacklightEnabled(true);
     Game::menu.ReadSave();
 
     app->view_port = view_port_alloc();
@@ -198,6 +200,8 @@ extern "C" int32_t arduboy3d_app(void* p) {
     Game::menu.WriteSave();
 
     Platform::SetAudioEnabled(false);
+    // Always hand the backlight back, whatever the menu was left on
+    Platform::SetBacklightEnabled(false);
 
     furi_message_queue_free(app->input_queue);
     furi_mutex_free(app->state->mutex);

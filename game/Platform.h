@@ -16,6 +16,9 @@ public:
 	static void PlaySound(const uint16_t* audioPattern);
 	static bool IsAudioEnabled();
 	static void SetAudioEnabled(bool isEnabled);
+
+	static bool IsBacklightEnabled();
+	static void SetBacklightEnabled(bool isEnabled);
 	
 	static void FillScreen(uint8_t col);
 	static void PutPixel(uint8_t x, uint8_t y, uint8_t colour);

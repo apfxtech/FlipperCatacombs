@@ -37,7 +37,7 @@ static constexpr uint8_t kObjectsCount = (uint8_t)(sizeof(kObjects) / sizeof(kOb
 static constexpr uint8_t SHIFT_MASK = 63;
 
 namespace {
-constexpr uint8_t MENU_ITEMS_COUNT = 5;
+constexpr uint8_t MENU_ITEMS_COUNT = 6;
 constexpr uint8_t VISIBLE_ROWS = 2;
 
 constexpr uint8_t MENU_FIRST_ROW = 4;
@@ -379,14 +379,19 @@ void Menu::PrintItem(uint8_t idx, uint8_t row) {
             Platform::IsAudioEnabled() ? "on" : "off", row, TEXT_X + 28, COLOUR_WHITE);
         break;
     case 2:
+        Font::PrintString("Light:", row, TEXT_X, COLOUR_WHITE);
+        Font::PrintString(
+            Platform::IsBacklightEnabled() ? "on" : "off", row, TEXT_X + 28, COLOUR_WHITE);
+        break;
+    case 3:
         Font::PrintString("Score:", row, TEXT_X, COLOUR_WHITE);
         Font::PrintInt(m_score, row, TEXT_X + 28, COLOUR_WHITE);
         break;
-    case 3:
+    case 4:
         Font::PrintString("High:", row, TEXT_X, COLOUR_WHITE);
         Font::PrintInt(m_high, row, TEXT_X + 28, COLOUR_WHITE);
         break;
-    case 4:
+    case 5:
         Font::PrintString("Credits", row, TEXT_X, COLOUR_WHITE);
         break;
     }
@@ -618,7 +623,10 @@ void Menu::Tick() {
         case 1:
             Platform::SetAudioEnabled(!Platform::IsAudioEnabled());
             break;
-        case 4:
+        case 2:
+            Platform::SetBacklightEnabled(!Platform::IsBacklightEnabled());
+            break;
+        case 5:
             m_splashPhase = SplashPhase::Credits;
             break;
         default:

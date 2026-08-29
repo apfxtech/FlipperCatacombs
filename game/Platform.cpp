@@ -1,6 +1,8 @@
 #include <furi.h>
 #include <furi_hal.h>
 #include <storage/storage.h>
+#include <notification/notification.h>
+#include <notification/notification_messages.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -160,6 +162,30 @@ void Platform::SetAudioEnabled(bool enabled) {
         sound_system_init();
     else if(!enabled && was_enabled)
         sound_system_deinit();
+}
+
+// ---------------- BACKLIGHT ----------------
+
+// The firmware's enforce lock is a plain flag, not a counter: sending "auto"
+// without a matching "on" logs an error, so only real transitions are sent.
+static void backlight_send(const NotificationSequence* sequence) {
+    NotificationApp* notifications = (NotificationApp*)furi_record_open(RECORD_NOTIFICATION);
+    notification_message_block(notifications, sequence);
+    furi_record_close(RECORD_NOTIFICATION);
+}
+
+bool Platform::IsBacklightEnabled() {
+    return g_state && g_state->backlight_enabled;
+}
+
+void Platform::SetBacklightEnabled(bool enabled) {
+    if(!g_state) return;
+    if(g_state->backlight_enabled == enabled) return;
+
+    g_state->backlight_enabled = enabled;
+    backlight_send(
+        enabled ? &sequence_display_backlight_enforce_on :
+                  &sequence_display_backlight_enforce_auto);
 }
 
 // ---------------- INPUT ----------------

@@ -28,6 +28,9 @@ typedef struct {
     volatile uint8_t input_state;
     volatile bool exit_requested;
     volatile bool audio_enabled;
+    // Not persisted: the backlight lock starts on every launch and is always
+    // released on exit, so a dimmed screen never outlives the app
+    volatile bool backlight_enabled;
 } FlipperState;
 
 extern FlipperState* g_state;
