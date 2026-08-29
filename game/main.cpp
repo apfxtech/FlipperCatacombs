@@ -30,6 +30,30 @@ typedef struct {
     Gui* gui;
 } CatacombsApp;
 
+#define TAG "catacombs"
+
+static void guards_arm(FlipperState* state) {
+    memset(state->guard_low, FRAMEBUFFER_GUARD_BYTE, FRAMEBUFFER_GUARD_SIZE);
+    memset(state->guard_high, FRAMEBUFFER_GUARD_BYTE, FRAMEBUFFER_GUARD_SIZE);
+}
+
+// Reports a stray framebuffer write instead of letting it silently destroy the
+// heap. Runs before the block is handed back to the allocator.
+static void guards_check(const FlipperState* state) {
+    for(size_t i = 0; i < FRAMEBUFFER_GUARD_SIZE; i++) {
+        if(state->guard_low[i] != FRAMEBUFFER_GUARD_BYTE) {
+            FURI_LOG_E(TAG, "framebuffer underflow: guard_low[%u]", (unsigned)i);
+            break;
+        }
+    }
+    for(size_t i = 0; i < FRAMEBUFFER_GUARD_SIZE; i++) {
+        if(state->guard_high[i] != FRAMEBUFFER_GUARD_BYTE) {
+            FURI_LOG_E(TAG, "framebuffer overflow: guard_high[%u]", (unsigned)i);
+            break;
+        }
+    }
+}
+
 static void draw_callback(Canvas* canvas, void* context) {
     CatacombsApp* app = (CatacombsApp*)context;
 
@@ -124,6 +148,7 @@ extern "C" int32_t arduboy3d_app(void* p) {
     app->state = (FlipperState*)malloc(sizeof(FlipperState));
     memset(app->state, 0, sizeof(FlipperState));
     g_state = app->state;
+    guards_arm(app->state);
 
     app->state->mutex = furi_mutex_alloc(FuriMutexTypeNormal);
     app->input_queue = furi_message_queue_alloc(16, sizeof(InputEvent));
@@ -170,6 +195,8 @@ extern "C" int32_t arduboy3d_app(void* p) {
 
     furi_message_queue_free(app->input_queue);
     furi_mutex_free(app->state->mutex);
+
+    guards_check(app->state);
 
     free(app->state);
     g_state = NULL;
