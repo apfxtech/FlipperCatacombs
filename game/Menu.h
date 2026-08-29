@@ -2,7 +2,7 @@
 #include <stdint.h>
 
 // 8x8, 8 кадров (0..7) — как в первом коде
-static const uint8_t PROGMEM transitionSet[] = {
+static const uint8_t transitionSet[] = {
     8,
     8,
     // FRAME 00

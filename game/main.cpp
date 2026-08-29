@@ -6,256 +6,149 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lib/flipper.h"
-#include "lib/EEPROM.h"
+#include "game/Flipper.h"
 #include "game/Game.h"
 #include "game/Platform.h"
 
 #define TARGET_FRAMERATE 30
-#define HOLD_TIME_MS     300
 
 FlipperState* g_state = NULL;
 
-static volatile uint32_t s_input_cb_inflight = 0;
-static volatile uint32_t s_fb_cb_inflight = 0;
-static volatile uint8_t s_back_pressed = 0;
+typedef struct {
+    FlipperState* state;
+    FuriMessageQueue* input_queue;
+    ViewPort* view_port;
+    Gui* gui;
+} CatacombsApp;
 
-static inline void wait_inflight_zero(volatile uint32_t* counter) {
-    while(__atomic_load_n(counter, __ATOMIC_ACQUIRE) != 0) {
-        furi_delay_ms(1);
+static void draw_callback(Canvas* canvas, void* context) {
+    CatacombsApp* app = (CatacombsApp*)context;
+
+    uint8_t* target = canvas_get_buffer(canvas);
+    size_t size = canvas_get_buffer_size(canvas);
+    if(size > BUFFER_SIZE) size = BUFFER_SIZE;
+
+    furi_mutex_acquire(app->state->mutex, FuriWaitForever);
+
+    const uint8_t* source = app->state->framebuffer;
+    for(size_t i = 0; i < size; i++) {
+        target[i] = (uint8_t)~source[i];
     }
+
+    furi_mutex_release(app->state->mutex);
 }
 
-inline bool audio_enable(){
-    return !furi_hal_rtc_is_flag_set(FuriHalRtcFlagStealthMode);
+static void input_callback(InputEvent* event, void* context) {
+    CatacombsApp* app = (CatacombsApp*)context;
+    furi_message_queue_put(app->input_queue, event, 0);
 }
 
-static void framebuffer_commit_callback(
-    uint8_t* data,
-    size_t size,
-    CanvasOrientation orientation,
-    void* context) {
-    __atomic_fetch_add(&s_fb_cb_inflight, 1, __ATOMIC_RELAXED);
-
-    FlipperState* state = (FlipperState*)context;
-    if(!state || !data || size < BUFFER_SIZE) {
-        __atomic_fetch_sub(&s_fb_cb_inflight, 1, __ATOMIC_RELAXED);
-        return;
-    }
-    (void)orientation;
-
-    if(furi_mutex_acquire(state->fb_mutex, 0) != FuriStatusOk) {
-        __atomic_fetch_sub(&s_fb_cb_inflight, 1, __ATOMIC_RELAXED);
-        return;
-    }
-
-    const uint8_t* src = state->front_buffer;
-    for(size_t i = 0; i < BUFFER_SIZE; i++) {
-        data[i] = (uint8_t)(src[i] ^ 0xFF);
-    }
-
-    furi_mutex_release(state->fb_mutex);
-
-    __atomic_fetch_sub(&s_fb_cb_inflight, 1, __ATOMIC_RELAXED);
-}
-
-static void input_events_callback(const void* value, void* ctx) {
-    if(!value || !ctx) return;
-
-    __atomic_fetch_add(&s_input_cb_inflight, 1, __ATOMIC_RELAXED);
-
-    FlipperState* state = (FlipperState*)ctx;
-    const InputEvent* event = (const InputEvent*)value;
-
-    uint8_t bit = 0;
-    switch(event->key) {
+static uint8_t button_from_key(InputKey key) {
+    switch(key) {
     case InputKeyUp:
-        bit = INPUT_UP;
-        break;
+        return INPUT_UP;
     case InputKeyDown:
-        bit = INPUT_DOWN;
-        break;
+        return INPUT_DOWN;
     case InputKeyLeft:
-        bit = INPUT_LEFT;
-        break;
+        return INPUT_LEFT;
     case InputKeyRight:
-        bit = INPUT_RIGHT;
-        break;
+        return INPUT_RIGHT;
     case InputKeyOk:
-        bit = INPUT_B;
-        break;
-    case InputKeyBack:
-        if((event->type == InputTypePress) || (event->type == InputTypeRepeat)) {
-            (void)__atomic_store_n(&s_back_pressed, 1, __ATOMIC_RELAXED);
-        } else if(event->type == InputTypeRelease) {
-            (void)__atomic_store_n(&s_back_pressed, 0, __ATOMIC_RELAXED);
-        }
-        break;
+        return INPUT_A | INPUT_B;
     default:
-        break;
+        return 0;
     }
+}
 
-    if(state && bit) {
-        if((event->type == InputTypePress) || (event->type == InputTypeRepeat)) {
-            (void)__atomic_fetch_or((uint8_t*)&state->input_state, bit, __ATOMIC_RELAXED);
-        } else if(event->type == InputTypeRelease) {
-            (void)__atomic_fetch_and(
-                (uint8_t*)&state->input_state, (uint8_t)~bit, __ATOMIC_RELAXED);
+static void input_apply(CatacombsApp* app, const InputEvent* event) {
+    if(event->key == InputKeyBack) {
+        if(event->type == InputTypeLong) {
+            if(Game::InMenu())
+                app->state->exit_requested = true;
+            else
+                Game::GoToMenu();
         }
+        return;
     }
 
-    __atomic_fetch_sub(&s_input_cb_inflight, 1, __ATOMIC_RELAXED);
+    const uint8_t bit = button_from_key(event->key);
+    if(!bit) return;
+
+    if((event->type == InputTypePress) || (event->type == InputTypeRepeat)) {
+        app->state->input_state |= bit;
+    } else if(event->type == InputTypeRelease) {
+        app->state->input_state &= (uint8_t)~bit;
+    }
+}
+
+static void frame_advance(CatacombsApp* app) {
+    furi_mutex_acquire(app->state->mutex, FuriWaitForever);
+
+    Game::Tick();
+    Game::Draw();
+
+    furi_mutex_release(app->state->mutex);
 }
 
 extern "C" int32_t arduboy3d_app(void* p) {
     UNUSED(p);
 
-    Gui* gui = NULL;
-    Canvas* canvas = NULL;
-    FuriPubSub* input_events = NULL;
-    FuriPubSubSubscription* input_sub = NULL;
+    CatacombsApp* app = (CatacombsApp*)malloc(sizeof(CatacombsApp));
+    memset(app, 0, sizeof(CatacombsApp));
 
-    FlipperState* st = (FlipperState*)malloc(sizeof(FlipperState));
-    if(!st) return -1;
-    memset(st, 0, sizeof(FlipperState));
-    g_state = st;
+    app->state = (FlipperState*)malloc(sizeof(FlipperState));
+    memset(app->state, 0, sizeof(FlipperState));
+    g_state = app->state;
 
-    do {
-        st->fb_mutex = furi_mutex_alloc(FuriMutexTypeNormal);
-        if(!st->fb_mutex) break;
+    app->state->mutex = furi_mutex_alloc(FuriMutexTypeNormal);
+    app->input_queue = furi_message_queue_alloc(16, sizeof(InputEvent));
 
-        memset(st->back_buffer, 0x00, BUFFER_SIZE);
-        memset(st->front_buffer, 0x00, BUFFER_SIZE);
+    Platform::SetAudioEnabled(!furi_hal_rtc_is_flag_set(FuriHalRtcFlagStealthMode));
+    Game::menu.ReadSave();
 
-        EEPROM.begin();
-        furi_delay_ms(50);
-        Platform::SetAudioEnabled(audio_enable());
-        Game::menu.ReadSave();
+    app->view_port = view_port_alloc();
+    view_port_draw_callback_set(app->view_port, draw_callback, app);
+    view_port_input_callback_set(app->view_port, input_callback, app);
 
-        gui = (Gui*)furi_record_open(RECORD_GUI);
-        if(!gui) break;
-        st->gui = gui;
+    app->gui = (Gui*)furi_record_open(RECORD_GUI);
+    gui_add_view_port(app->gui, app->view_port, GuiLayerFullscreen);
 
-        gui_add_framebuffer_callback(gui, framebuffer_commit_callback, st);
+    const uint32_t period = furi_kernel_get_tick_frequency() / TARGET_FRAMERATE;
+    uint32_t next_frame = furi_get_tick() + period;
 
-        canvas = gui_direct_draw_acquire(gui);
-        if(!canvas) break;
-        st->canvas = canvas;
+    while(!app->state->exit_requested) {
+        int32_t remaining = (int32_t)(next_frame - furi_get_tick());
 
-        input_events = (FuriPubSub*)furi_record_open(RECORD_INPUT_EVENTS);
-        if(!input_events) break;
-        st->input_events = input_events;
-
-        input_sub = furi_pubsub_subscribe(input_events, input_events_callback, st);
-        if(!input_sub) break;
-        st->input_sub = input_sub;
-
-        const uint32_t tick_hz = furi_kernel_get_tick_frequency();
-        uint32_t period_ticks = (tick_hz + (TARGET_FRAMERATE / 2)) / TARGET_FRAMERATE;
-        if(period_ticks == 0) period_ticks = 1;
-        const uint32_t hold_ticks = (uint32_t)((HOLD_TIME_MS * tick_hz + 999u) / 1000u);
-
-        uint32_t next_tick = furi_get_tick();
-
-        bool back_was_pressed = false;
-        bool back_hold_fired = false;
-        uint32_t back_press_tick = 0;
-
-        while(!st->exit_requested) {
-            uint32_t now = furi_get_tick();
-
-            // frame pacing
-            if((int32_t)(now - next_tick) < 0) {
-                uint32_t dt_ticks = next_tick - now;
-                uint32_t dt_ms = (dt_ticks * 1000u) / tick_hz;
-                furi_delay_ms(dt_ms ? dt_ms : 1);
-                continue;
-            }
-
-            if((int32_t)(now - next_tick) > (int32_t)(period_ticks * 2)) {
-                next_tick = now;
-            }
-            next_tick += period_ticks;
-
-            const bool back_pressed = (__atomic_load_n(&s_back_pressed, __ATOMIC_RELAXED) != 0);
-
-            // BACK hold logic
-            if(!back_pressed) {
-                back_was_pressed = false;
-                back_hold_fired = false;
-            } else {
-                if(!back_was_pressed) {
-                    back_was_pressed = true;
-                    back_press_tick = now;
-                    back_hold_fired = false;
-                }
-
-                if(!back_hold_fired && ((uint32_t)(now - back_press_tick) >= hold_ticks)) {
-                    back_hold_fired = true;
-                    if(Game::InMenu())
-                        st->exit_requested = true;
-                    else
-                        Game::GoToMenu();
-                }
-            }
-
-            if(st->exit_requested) break;
-
-            Game::Tick();
-            Game::Draw();
-
-            // swap for framebuffer callback
-            furi_mutex_acquire(st->fb_mutex, FuriWaitForever);
-            memcpy(st->front_buffer, st->back_buffer, BUFFER_SIZE);
-            furi_mutex_release(st->fb_mutex);
-
-            canvas_commit(canvas);
+        InputEvent event;
+        if(remaining > 0 &&
+           furi_message_queue_get(app->input_queue, &event, (uint32_t)remaining) == FuriStatusOk) {
+            input_apply(app, &event);
+            continue;
         }
-    } while(false);
+
+        next_frame += period;
+        if((int32_t)(furi_get_tick() - next_frame) > (int32_t)period) {
+            next_frame = furi_get_tick() + period;
+        }
+
+        frame_advance(app);
+        view_port_update(app->view_port);
+    }
+
+    gui_remove_view_port(app->gui, app->view_port);
+    furi_record_close(RECORD_GUI);
+    view_port_free(app->view_port);
 
     Game::menu.WriteSave();
 
-    if(input_sub && input_events) {
-        furi_pubsub_unsubscribe(input_events, input_sub);
-        input_sub = NULL;
-    }
-    st->input_sub = NULL;
-
-    wait_inflight_zero(&s_input_cb_inflight);
-    (void)__atomic_store_n(&s_back_pressed, 0, __ATOMIC_RELAXED);
-
-    if(input_events) {
-        furi_record_close(RECORD_INPUT_EVENTS);
-        input_events = NULL;
-    }
-    st->input_events = NULL;
-
-    if(gui) {
-        gui_remove_framebuffer_callback(gui, framebuffer_commit_callback, st);
-    }
-
-    wait_inflight_zero(&s_fb_cb_inflight);
-
-    if(gui) {
-        if(canvas) {
-            gui_direct_draw_release(gui);
-            canvas = NULL;
-        }
-        furi_record_close(RECORD_GUI);
-        gui = NULL;
-    }
-    st->gui = NULL;
-    st->canvas = NULL;
-
-    if(st->fb_mutex) {
-        furi_mutex_free(st->fb_mutex);
-        st->fb_mutex = NULL;
-    }
-
     Platform::SetAudioEnabled(false);
 
-    free(st);
+    furi_message_queue_free(app->input_queue);
+    furi_mutex_free(app->state->mutex);
+
+    free(app->state);
     g_state = NULL;
+    free(app);
 
     return 0;
 }

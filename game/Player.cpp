@@ -13,7 +13,7 @@
 #define STRAFE_TILT 14
 #define ROTATE_TILT 3
 
-const char SignMessage1[] PROGMEM = "Abandon all hope ye who enter!";
+const char SignMessage1[] = "Abandon all hope ye who enter!";
 
 void Player::Init()
 {
@@ -59,7 +59,9 @@ void Player::Tick()
 	int8_t moveDelta = 0;
 	int8_t strafeDelta = 0;
 
-	if (input & INPUT_A)
+	const bool strafing = (input & INPUT_A) && (input & (INPUT_LEFT | INPUT_RIGHT));
+
+	if (strafing)
 	{
 		if (input & INPUT_LEFT)
 		{
@@ -88,7 +90,7 @@ void Player::Tick()
 	{
 		reloadTime--;
 	}
-	else if (input & INPUT_B)
+	else if ((input & INPUT_B) && !strafing)
 	{
 		Fire();
 	}
@@ -214,25 +216,25 @@ void Player::Tick()
 				hp += potionStrength;
 			Map::SetCell(cellX, cellY, CellType::Empty);
 			Platform::PlaySound(Sounds::Pickup);
-			Game::ShowMessage(PSTR("Drank a potion of healing"));
+			Game::ShowMessage("Drank a potion of healing");
 		}
 		break;
 	case CellType::Coins:
 		Map::SetCell(cellX, cellY, CellType::Empty);
 		Platform::PlaySound(Sounds::Pickup);
-		Game::ShowMessage(PSTR("Found some gold coins"));
+		Game::ShowMessage("Found some gold coins");
 		Game::stats.coinsCollected++;
 		break;
 	case CellType::Crown:
 		Map::SetCell(cellX, cellY, CellType::Empty);
 		Platform::PlaySound(Sounds::Pickup);
-		Game::ShowMessage(PSTR("Found a jewel encrusted crown"));
+		Game::ShowMessage("Found a jewel encrusted crown");
 		Game::stats.crownsCollected++;
 		break;
 	case CellType::Scroll:
 		Map::SetCell(cellX, cellY, CellType::Empty);
 		Platform::PlaySound(Sounds::Pickup);
-		Game::ShowMessage(PSTR("Found an ancient scroll"));
+		Game::ShowMessage("Found an ancient scroll");
 		Game::stats.scrollsCollected++;
 		break;
 	default:
@@ -262,7 +264,7 @@ bool Player::CheckCollisions()
 		Map::SetCell(lookAheadCellX, lookAheadCellY, CellType::ChestOpened);
 		ParticleSystemManager::CreateExplosion(lookAheadX, lookAheadY, true);
 		Platform::PlaySound(Sounds::Pickup);
-		Game::ShowMessage(PSTR("Found a chest full of treasure!"));
+		Game::ShowMessage("Found a chest full of treasure!");
 		Game::stats.chestsOpened++;
 		break;
 	case CellType::Sign:

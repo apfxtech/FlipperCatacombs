@@ -1,3 +1,6 @@
+v2.3:
+Display via canvas buffer, drop arduino layer
+
 v2.2:
 Restyle menu
 

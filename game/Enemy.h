@@ -39,15 +39,15 @@ struct EnemyArchetype
 	uint8_t spriteScale;
 	AnchorType spriteAnchor;
 
-	const uint16_t* GetSpriteData() const {return static_cast<const uint16_t*>(pgm_read_ptr_safe(&spriteData));}
-	uint8_t GetHP() const				{ return pgm_read_byte(&hp); }
-	uint8_t GetMovementSpeed() const	{ return pgm_read_byte(&movementSpeed); }
-	uint8_t GetAttackStrength() const	{ return pgm_read_byte(&attackStrength); }
-	uint8_t GetAttackDuration() const	{ return pgm_read_byte(&attackDuration); }
-	uint8_t GetStunDuration() const		{ return pgm_read_byte(&stunDuration); }
-	bool GetIsRanged() const			{ return pgm_read_byte(&isRanged) != 0; }
-	uint8_t GetSpriteScale() const		{ return pgm_read_byte(&spriteScale); }
-	AnchorType GetSpriteAnchor() const	{ return (AnchorType) pgm_read_byte(&spriteAnchor); }
+	const uint16_t* GetSpriteData() const {return spriteData;}
+	uint8_t GetHP() const				{ return hp; }
+	uint8_t GetMovementSpeed() const	{ return movementSpeed; }
+	uint8_t GetAttackStrength() const	{ return attackStrength; }
+	uint8_t GetAttackDuration() const	{ return attackDuration; }
+	uint8_t GetStunDuration() const		{ return stunDuration; }
+	bool GetIsRanged() const			{ return isRanged != 0; }
+	uint8_t GetSpriteScale() const		{ return spriteScale; }
+	AnchorType GetSpriteAnchor() const	{ return (AnchorType) spriteAnchor; }
 };
 
 class Enemy : public Entity

@@ -8,12 +8,11 @@
 #include "game/Generated/SpriteTypes.h"
 #include "game/Map.h"
 #include "game/FixedMath.h"
-#include "lib/EEPROM.h"
 
 #include <stdio.h>
 #include <string.h>
 
-constexpr uint8_t EEPROM_BASE_ADDR = 0;
+constexpr uint8_t SAVE_BASE_ADDR = 0;
 
 struct ObjDesc {
     const uint16_t* sprite;
@@ -291,13 +290,13 @@ void Menu::Draw() {
     DrawMenuRoom();
 
     if (splashActive) {
-        Font::PrintString(PSTR("FLIPPER GAME"), 2, 42, COLOUR_WHITE);
-        Font::PrintString(PSTR("JHHOWARD & APFXTECH"), 4, 26, COLOUR_WHITE);
-        Font::PrintString(PSTR("PRESENT"), 6, 52, COLOUR_WHITE);
+        Font::PrintString("FLIPPER GAME", 2, 42, COLOUR_WHITE);
+        Font::PrintString("JHHOWARD & APFXTECH", 4, 26, COLOUR_WHITE);
+        Font::PrintString("PRESENT", 6, 52, COLOUR_WHITE);
         return;
     }
 
-    Font::PrintString(PSTR("CATACOMBS OF THE DAMNED"), 2, 18, COLOUR_WHITE);
+    Font::PrintString("CATACOMBS OF THE DAMNED", 2, 18, COLOUR_WHITE);
 
     for (uint8_t row = 0; row < VISIBLE_ROWS; ++row) {
         uint8_t idx = (uint8_t)(m_topIndex + row);
@@ -351,25 +350,25 @@ void Menu::Draw() {
     Font::PrintInt(m_save[sprite1.varsIndex], MENU_FIRST_ROW + 1, 86, COLOUR_WHITE);
     Font::PrintInt(m_save[sprite2.varsIndex], MENU_FIRST_ROW + 1, 116, COLOUR_WHITE);
 
-    Font::PrintString(PSTR(">"), (uint8_t)(MENU_FIRST_ROW + m_cursorPos), CURSOR_X, COLOUR_WHITE);
+    Font::PrintString(">", (uint8_t)(MENU_FIRST_ROW + m_cursorPos), CURSOR_X, COLOUR_WHITE);
 }
 
 void Menu::PrintItem(uint8_t idx, uint8_t row) {
     switch(idx) {
     case 0:
-        Font::PrintString(PSTR("Play"), row, TEXT_X, COLOUR_WHITE);
+        Font::PrintString("Play", row, TEXT_X, COLOUR_WHITE);
         break;
     case 1:
-        Font::PrintString(PSTR("Sound:"), row, TEXT_X, COLOUR_WHITE);
+        Font::PrintString("Sound:", row, TEXT_X, COLOUR_WHITE);
         Font::PrintString(
-            Platform::IsAudioEnabled() ? PSTR("on") : PSTR("off"), row, TEXT_X + 28, COLOUR_WHITE);
+            Platform::IsAudioEnabled() ? "on" : "off", row, TEXT_X + 28, COLOUR_WHITE);
         break;
     case 2:
-        Font::PrintString(PSTR("Score:"), row, TEXT_X, COLOUR_WHITE);
+        Font::PrintString("Score:", row, TEXT_X, COLOUR_WHITE);
         Font::PrintInt(m_score, row, TEXT_X + 28, COLOUR_WHITE);
         break;
     case 3:
-        Font::PrintString(PSTR("High:"), row, TEXT_X, COLOUR_WHITE);
+        Font::PrintString("High:", row, TEXT_X, COLOUR_WHITE);
         Font::PrintInt(m_high, row, TEXT_X + 28, COLOUR_WHITE);
         break;
     }
@@ -386,7 +385,7 @@ void Menu::Init() {
 
 void Menu::DrawEnteringLevel() {
     DrawMenuRoom();
-    Font::PrintString(PSTR("Entering floor"), 3, 30, COLOUR_BLACK);
+    Font::PrintString("Entering floor", 3, 30, COLOUR_BLACK);
     Font::PrintInt(Game::floor, 3, 90, COLOUR_BLACK);
 }
 
@@ -443,25 +442,25 @@ void Menu::DrawGameOver() {
 
     switch(Game::stats.killedBy) {
     case EnemyType::Exit:
-        Font::PrintString(PSTR("You have left the game."), 1, 18, COLOUR_BLACK);
+        Font::PrintString("You have left the game.", 1, 18, COLOUR_BLACK);
         break;
     case EnemyType::None:
-        Font::PrintString(PSTR("You escaped the catacombs!"), 1, 12, COLOUR_BLACK);
+        Font::PrintString("You escaped the catacombs!", 1, 12, COLOUR_BLACK);
         break;
     case EnemyType::Mage:
-        Font::PrintString(PSTR("Killed by a mage on level"), 1, 8, COLOUR_BLACK);
+        Font::PrintString("Killed by a mage on level", 1, 8, COLOUR_BLACK);
         Font::PrintInt(Game::floor, 1, 112, COLOUR_BLACK);
         break;
     case EnemyType::Skeleton:
-        Font::PrintString(PSTR("Killed by a knight on level"), 1, 4, COLOUR_BLACK);
+        Font::PrintString("Killed by a knight on level", 1, 4, COLOUR_BLACK);
         Font::PrintInt(Game::floor, 1, 116, COLOUR_BLACK);
         break;
     case EnemyType::Bat:
-        Font::PrintString(PSTR("Killed by a bat on level"), 1, 10, COLOUR_BLACK);
+        Font::PrintString("Killed by a bat on level", 1, 10, COLOUR_BLACK);
         Font::PrintInt(Game::floor, 1, 110, COLOUR_BLACK);
         break;
     case EnemyType::Spider:
-        Font::PrintString(PSTR("Killed by a spider on level"), 1, 4, COLOUR_BLACK);
+        Font::PrintString("Killed by a spider on level", 1, 4, COLOUR_BLACK);
         Font::PrintInt(Game::floor, 1, 116, COLOUR_BLACK);
         break;
     }
@@ -618,7 +617,7 @@ void Menu::TickGameOver() {
 
 static inline void DrawEraseTile8x8(int16_t x, int16_t y, const uint8_t* frame8bytes) {
     for(uint8_t row = 0; row < 8; row++) {
-        uint8_t rowMask = pgm_read_byte(frame8bytes + row);
+        uint8_t rowMask = frame8bytes[row];
         while(rowMask) {
             uint8_t b = (uint8_t)__builtin_ctz((unsigned)rowMask);
             uint8_t col = 7 - b;
@@ -629,8 +628,8 @@ static inline void DrawEraseTile8x8(int16_t x, int16_t y, const uint8_t* frame8b
 }
 
 void Menu::DrawTransitionFrame(uint8_t frameIndex) {
-    const uint8_t w = pgm_read_byte(transitionSet + 0);
-    const uint8_t h = pgm_read_byte(transitionSet + 1);
+    const uint8_t w = transitionSet[0];
+    const uint8_t h = transitionSet[1];
     (void)w;
     (void)h;
 
@@ -674,13 +673,16 @@ void Menu::FadeOut() {
 }
 
 void Menu::ReadSave() {
-    uint8_t addr = EEPROM_BASE_ADDR;
-    m_score = (uint16_t)EEPROM.read(addr) | ((uint16_t)EEPROM.read(addr + 1) << 8); addr += 2;
-    m_high = (uint16_t)EEPROM.read(addr) | ((uint16_t)EEPROM.read(addr + 1) << 8);  addr += 2;
+    uint8_t data[SAVE_DATA_SIZE] = {0};
+    Platform::ReadSaveData(data);
+
+    uint8_t addr = SAVE_BASE_ADDR;
+    m_score = (uint16_t)data[addr] | ((uint16_t)data[addr + 1] << 8); addr += 2;
+    m_high = (uint16_t)data[addr] | ((uint16_t)data[addr + 1] << 8);  addr += 2;
     m_storedHigh = m_high;
-    
+
     for(int i = 0; i < 9; i++) {
-        m_save[i] = EEPROM.read(addr++);
+        m_save[i] = data[addr++];
     }
 }
 
@@ -691,14 +693,18 @@ void Menu::SetScore(uint16_t score) {
 }
 
 void Menu::WriteSave() {
-    uint8_t addr = EEPROM_BASE_ADDR;
-    EEPROM.update(addr++, (uint8_t)(m_score & 0xFF));
-    EEPROM.update(addr++, (uint8_t)(m_score >> 8));
-    EEPROM.update(addr++, (uint8_t)(m_high & 0xFF));
-    EEPROM.update(addr++, (uint8_t)(m_high >> 8));
+    uint8_t data[SAVE_DATA_SIZE] = {0};
+    Platform::ReadSaveData(data);
+
+    uint8_t addr = SAVE_BASE_ADDR;
+    data[addr++] = (uint8_t)(m_score & 0xFF);
+    data[addr++] = (uint8_t)(m_score >> 8);
+    data[addr++] = (uint8_t)(m_high & 0xFF);
+    data[addr++] = (uint8_t)(m_high >> 8);
 
     for(int i = 0; i < 9; i++) {
-        EEPROM.update(addr++, m_save[i]);
+        data[addr++] = m_save[i];
     }
-    EEPROM.commit();
+
+    Platform::WriteSaveData(data);
 }

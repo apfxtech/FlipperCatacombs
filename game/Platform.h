@@ -2,11 +2,16 @@
 
 #include <stdint.h>
 
+#define SAVE_DATA_SIZE 16
+
 class Platform
 {
 public:
 	static uint8_t GetInput(void);
 	static uint8_t* GetScreenBuffer(); 
+
+	static void ReadSaveData(uint8_t* data);
+	static void WriteSaveData(const uint8_t* data);
 
 	static void PlaySound(const uint16_t* audioPattern);
 	static bool IsAudioEnabled();
