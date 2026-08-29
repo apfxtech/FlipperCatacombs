@@ -68,7 +68,7 @@ static void draw_callback(Canvas* canvas, void* context) {
         target[i] = (uint8_t)~source[i];
     }
 
-    const bool title = (Game::menu.GetSplashPhase() == Menu::SplashPhase::Title);
+    const bool title = Game::menu.ShowsTitleScreen();
 
     furi_mutex_release(app->state->mutex);
 
@@ -111,7 +111,13 @@ static uint8_t button_from_key(InputKey key) {
 
 static void input_apply(CatacombsApp* app, const InputEvent* event) {
     if(event->key == InputKeyBack) {
-        if(event->type == InputTypeLong) {
+        // Exactly one of Short/Long is emitted per press, so the credits screen
+        // swallows Back without also quitting the app on a long hold
+        if(Game::menu.InCredits()) {
+            if(event->type == InputTypeShort || event->type == InputTypeLong) {
+                Game::menu.CloseCredits();
+            }
+        } else if(event->type == InputTypeLong) {
             if(Game::InMenu())
                 app->state->exit_requested = true;
             else

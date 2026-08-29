@@ -37,7 +37,7 @@ static constexpr uint8_t kObjectsCount = (uint8_t)(sizeof(kObjects) / sizeof(kOb
 static constexpr uint8_t SHIFT_MASK = 63;
 
 namespace {
-constexpr uint8_t MENU_ITEMS_COUNT = 4;
+constexpr uint8_t MENU_ITEMS_COUNT = 5;
 constexpr uint8_t VISIBLE_ROWS = 2;
 
 constexpr uint8_t MENU_FIRST_ROW = 4;
@@ -301,8 +301,11 @@ void Menu::Draw() {
     DrawMenuRoom();
 
     // The logo and the border frame are drawn straight onto the canvas in main.cpp
-    if (m_splashPhase == SplashPhase::Title) {
+    if (ShowsTitleScreen()) {
         DrawTitleDecor();
+        if (m_splashPhase == SplashPhase::Credits) {
+            Font::PrintString("by JHHOWARD & APFXTECH", CREDIT_ROW, CREDIT_X, COLOUR_WHITE);
+        }
         return;
     }
 
@@ -383,6 +386,9 @@ void Menu::PrintItem(uint8_t idx, uint8_t row) {
         Font::PrintString("High:", row, TEXT_X, COLOUR_WHITE);
         Font::PrintInt(m_high, row, TEXT_X + 28, COLOUR_WHITE);
         break;
+    case 4:
+        Font::PrintString("Credits", row, TEXT_X, COLOUR_WHITE);
+        break;
     }
 }
 
@@ -393,6 +399,12 @@ void Menu::Init() {
 
     m_splashTimer = 0;
     m_splashPhase = SplashPhase::Title;
+}
+
+void Menu::CloseCredits() {
+    if(m_splashPhase == SplashPhase::Credits) {
+        m_splashPhase = SplashPhase::Done;
+    }
 }
 
 void Menu::DrawEnteringLevel() {
@@ -528,7 +540,11 @@ void Menu::Tick() {
     uint8_t input = Platform::GetInput();
 
     if(m_splashPhase != SplashPhase::Done) {
-        if(++m_splashTimer >= TITLE_TIME_TICKS) {
+        if(m_splashPhase == SplashPhase::Credits) {
+            // Any fresh press leaves; the button that opened the screen is still
+            // held down on the first tick here, so only a new edge counts
+            if((uint8_t)(input & ~lastInput) != 0) CloseCredits();
+        } else if(++m_splashTimer >= TITLE_TIME_TICKS) {
             m_splashTimer = 0;
             m_splashPhase = SplashPhase::Done;
         }
@@ -601,6 +617,9 @@ void Menu::Tick() {
             break;
         case 1:
             Platform::SetAudioEnabled(!Platform::IsAudioEnabled());
+            break;
+        case 4:
+            m_splashPhase = SplashPhase::Credits;
             break;
         default:
             break;

@@ -81,12 +81,20 @@ static const uint8_t transitionSet[] = {
 
 class Menu {
 public:
-    // Startup sequence: title screen with the credit line, then the menu
-    enum class SplashPhase : uint8_t { Title, Done };
+    // Startup sequence: title screen, then the menu. The Credits item replays
+    // that title screen from the menu, with the credit line under the logo.
+    enum class SplashPhase : uint8_t { Title, Done, Credits };
 
-    SplashPhase GetSplashPhase() const {
-        return m_splashPhase;
+    // main.cpp overlays the logo and the border frame while this is set
+    bool ShowsTitleScreen() const {
+        return m_splashPhase != SplashPhase::Done;
     }
+
+    bool InCredits() const {
+        return m_splashPhase == SplashPhase::Credits;
+    }
+
+    void CloseCredits();
 
     void Init();
     void Draw();
