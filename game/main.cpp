@@ -10,7 +10,16 @@
 #include "game/Game.h"
 #include "game/Platform.h"
 
+// Icons live compressed in flash and are unpacked by the firmware only while drawing
+extern "C" {
+#include <catacombs_icons.h>
+}
+
 #define TARGET_FRAMERATE 30
+
+// Title logo position inside the 128x64 artwork
+#define LOGO_X 28
+#define LOGO_Y 11
 
 FlipperState* g_state = NULL;
 
@@ -35,7 +44,23 @@ static void draw_callback(Canvas* canvas, void* context) {
         target[i] = (uint8_t)~source[i];
     }
 
+    const bool title = (Game::menu.GetSplashPhase() == Menu::SplashPhase::Title);
+
     furi_mutex_release(app->state->mutex);
+
+    if(!title) return;
+
+    canvas_set_bitmap_mode(canvas, true);
+
+    canvas_set_color(canvas, ColorWhite);
+    canvas_draw_frame(canvas, 0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT);
+    canvas_draw_icon(canvas, LOGO_X, LOGO_Y, &I_logo_fill);
+
+    canvas_set_color(canvas, ColorBlack);
+    canvas_draw_frame(canvas, 1, 1, DISPLAY_WIDTH - 2, DISPLAY_HEIGHT - 2);
+    canvas_draw_icon(canvas, LOGO_X, LOGO_Y, &I_logo_ink);
+
+    canvas_set_bitmap_mode(canvas, false);
 }
 
 static void input_callback(InputEvent* event, void* context) {

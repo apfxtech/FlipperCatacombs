@@ -44,9 +44,8 @@ constexpr uint8_t MENU_FIRST_ROW = 4;
 constexpr uint8_t TEXT_X = 18;
 constexpr uint8_t CURSOR_X = 10;
 
-constexpr uint8_t SPLASH_TIME_TICKS = 45;
-static uint8_t splashTimer = 0;
-static bool splashActive = true;
+constexpr uint8_t TITLE_TIME_TICKS = 90;   // ~3 s at 30 fps
+constexpr uint8_t PRESENT_TIME_TICKS = 30; // ~1 s at 30 fps
 
 static uint8_t Wrap(int v, int n) {
     v %= n;
@@ -284,12 +283,27 @@ void DrawMenuRoom() {
 #undef MENU_SOLID_SAFE
 #undef MENU_SOLID
 }
+
+void DrawTitleDecor() {
+    const uint16_t* torchSprite =
+        (Game::globalTickFrame & 4) ? torchSpriteData1 : torchSpriteData2;
+    const int spiderFrame = ((Game::globalTickFrame & 8) == 0) ? 32 : 0;
+
+    Renderer::DrawScaled(torchSprite, 4, 18, 10, 255);
+    Renderer::DrawScaled(spiderSpriteData + spiderFrame, 102, 34, 11, 255);
+}
 }
 
 void Menu::Draw() {
     DrawMenuRoom();
 
-    if (splashActive) {
+    // The logo and the border frame are drawn straight onto the canvas in main.cpp
+    if (m_splashPhase == SplashPhase::Title) {
+        DrawTitleDecor();
+        return;
+    }
+
+    if (m_splashPhase == SplashPhase::Present) {
         Font::PrintString("FLIPPER GAME", 2, 42, COLOUR_WHITE);
         Font::PrintString("JHHOWARD & APFXTECH", 4, 26, COLOUR_WHITE);
         Font::PrintString("PRESENT", 6, 52, COLOUR_WHITE);
@@ -379,8 +393,8 @@ void Menu::Init() {
     m_topIndex = 0;
     m_cursorPos = 0;
 
-    splashTimer = 0;
-    splashActive = true;
+    m_splashTimer = 0;
+    m_splashPhase = SplashPhase::Title;
 }
 
 void Menu::DrawEnteringLevel() {
@@ -515,9 +529,16 @@ void Menu::Tick() {
     static uint8_t lastInput = 0;
     uint8_t input = Platform::GetInput();
 
-    if(splashActive) {
-        if(splashTimer < SPLASH_TIME_TICKS) splashTimer++;
-        if(splashTimer >= SPLASH_TIME_TICKS) splashActive = false;
+    if(m_splashPhase != SplashPhase::Done) {
+        const uint8_t showTime =
+            (m_splashPhase == SplashPhase::Title) ? TITLE_TIME_TICKS : PRESENT_TIME_TICKS;
+
+        if(++m_splashTimer >= showTime) {
+            m_splashTimer = 0;
+            m_splashPhase = (m_splashPhase == SplashPhase::Title) ? SplashPhase::Present :
+                                                                   SplashPhase::Done;
+        }
+
         lastInput = input;
         return;
     }
